@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.191009"
+Versio_modul="V_Q3.191115"
 geometria=""
 connexioFeta=False
 
@@ -744,10 +744,14 @@ class MapesDescriptiusPoblacio:
                             max = int(self.dlg.txtEdatMax.text())
                             min = int(self.dlg.txtEdatMin.text())
                             
-                        except:
-                            QMessageBox.information(None, "Error", "Error al llegir les edats.\nEls camps edat mínima i edat màxima han d'estar plens")
+                        except Exception as ex:
                             self.dlg.GrupPestanyes.setCurrentIndex(0)
                             self.tornaConnectat()
+                            print("Error llegir les edats")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
+                            QMessageBox.information(None, "Error", "Error al llegir les edats.\nEls camps edat mínima i edat màxima han d'estar plens")
                             return
                         
                         if ((min > max) or (min < 0) or (max <= 0)):
@@ -945,9 +949,15 @@ class MapesDescriptiusPoblacio:
                             QApplication.processEvents()
                             #cur.execute(csv)
                             #resultat = cur.fetchall()
-                        except:
+                        
+                        except Exception as ex:
                             self.tornaConnectat()
+                            print("Error modificar la TaulaResum 1")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            return
                     '''Per Parcel.les'''
                     if self.dlg.PARCELES.isChecked():
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
@@ -961,9 +971,15 @@ class MapesDescriptiusPoblacio:
                             self.mostraSHPperPantalla(csv, "Parceles")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
-                        except:
+                        except Exception as ex:
                             self.tornaConnectat()
+                            print("Error modificar la TaulaResum 2")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            return
+                            
                     '''Per barris'''
                     if self.dlg.BARRIS.isChecked():
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
@@ -979,9 +995,15 @@ class MapesDescriptiusPoblacio:
                             self.mostraSHPperPantalla(csv, "Barris")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
-                        except:
+                        except Exception as ex:
                             self.tornaConnectat()
+                            print("Error modificar la TaulaResum 3")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            return
+                            
                     '''Per seccions'''        
                     if self.dlg.SECCIONS.isChecked():
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
@@ -997,9 +1019,14 @@ class MapesDescriptiusPoblacio:
                             self.mostraSHPperPantalla(csv, "Seccions")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
-                        except:
+                        except Exception as ex:
                             self.tornaConnectat()
+                            print("Error modificar la TaulaResum 4")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            return
                     '''Per districtes'''       
                     if self.dlg.DISTRICTES.isChecked():
                        
@@ -1016,13 +1043,24 @@ class MapesDescriptiusPoblacio:
                             self.mostraSHPperPantalla(csv, "Districtes")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
-                        except:
+                        except Exception as ex:
                             self.tornaConnectat()
+                            print("Error modificar la TaulaResum 5")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
-                except:
+                            return
+                except Exception as ex:
+                    self.tornaConnectat()
                     self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ff7f7f')
                     self.dlg.lblEstatConn.setText('Error: Hi ha algun camp erroni.')
                     print ("I am unable to connect to the database")
+                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                    message = template.format(type(ex).__name__, ex.args)
+                    print (message)
+                    QMessageBox.information(None, "Error", "Error a la connexio")
+                    return
                 self.dlg.progressBar.setValue(100)
                 QApplication.processEvents()
                 self.tornaConnectat()
