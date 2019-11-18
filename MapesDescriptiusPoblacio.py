@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.191115"
+Versio_modul="V_Q3.191118"
 geometria=""
 connexioFeta=False
 
@@ -630,10 +630,15 @@ class MapesDescriptiusPoblacio:
                 #print rows[0][0]
                 self.dlg.data.setDateTime(QtCore.QDateTime.fromString(str(rows[0][0]),"d/M/yyyy"))
                 
-            except:
+            except Exception as ex:
+                print ("I am unable to connect to the database")
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", "Error connexio")
                 self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ff7f7f')
                 self.dlg.lblEstatConn.setText('Error: Hi ha algun camp erroni.')
-                print ("I am unable to connect to the database")
+                return
             
         else:
             self.dlg.lblEstatConn.setText('No connectat')
@@ -841,9 +846,18 @@ class MapesDescriptiusPoblacio:
                                 for item in llistaORG:
                                     zonaCont += '"CONZONCON" = '  + chr(39) + item.toolTip()  + chr(39) + ' OR '
                                 zonaCont=zonaCont[0:len(zonaCont)-4]
-                                SQL_Pro = 'SELECT "CONCODPAI" from "public"."CONTINENTS" '  + zonaCont  + ' ORDER BY 1'  
-                                cur.execute(SQL_Pro)
-                                rows = cur.fetchall()
+                                SQL_Pro = 'SELECT "CONCODPAI" from "public"."CONTINENTS" '  + zonaCont  + ' ORDER BY 1'
+                                try:  
+                                    cur.execute(SQL_Pro)
+                                    rows = cur.fetchall()
+                                except Exception as ex:
+                                    self.tornaConnectat()
+                                    print("Error SELECT concopdai")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                    return
                                 where += '('
                                 for index,row in enumerate(rows,start=0):
                                     if index == 0:
@@ -864,8 +878,17 @@ class MapesDescriptiusPoblacio:
                                return
                         elif self.dlg.btoEuropa27.isChecked():
                             SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
-                            cur.execute(SQL_Pro)
-                            rows = cur.fetchall()
+                            try:
+                                cur.execute(SQL_Pro)
+                                rows = cur.fetchall()
+                            except Exception as ex:
+                                self.tornaConnectat()
+                                print("Error SELECT concopdai")
+                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                message = template.format(type(ex).__name__, ex.args)
+                                print (message)
+                                QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                return
                             where += '('
                             for index,row in enumerate(rows,start=0):
                                 if index == 0:
@@ -905,8 +928,17 @@ class MapesDescriptiusPoblacio:
 
                                 zonaCont=zonaCont[0:len(zonaCont)-4]
                                 SQL_Pro = 'SELECT "CONCODPAI" from "public"."CONTINENTS" '  + zonaCont  + ' ORDER BY 1' 
-                                cur.execute(SQL_Pro)
-                                rows = cur.fetchall()
+                                try:
+                                    cur.execute(SQL_Pro)
+                                    rows = cur.fetchall()
+                                except Exception as ex:
+                                    self.tornaConnectat()
+                                    print("Error SELECT concopdai")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                    return
                                 where += '('
                                 for index,row in enumerate(rows,start=0):
                                     if index == 0:
@@ -921,8 +953,17 @@ class MapesDescriptiusPoblacio:
                                return
                         elif self.dlg.btoEuropa27_3.isChecked():
                             SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
-                            cur.execute(SQL_Pro)
-                            rows = cur.fetchall()
+                            try:
+                                cur.execute(SQL_Pro)
+                                rows = cur.fetchall()
+                            except Exception as ex:
+                                self.tornaConnectat()
+                                print("Error SELECT concopdai")
+                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                message = template.format(type(ex).__name__, ex.args)
+                                print (message)
+                                QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                return
                             where += '('
                             for index,row in enumerate(rows,start=0):
                                 if index == 0:
