@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200210"
+Versio_modul="V_Q3.200214"
 geometria=""
 connexioFeta=False
 
@@ -703,6 +703,7 @@ class MapesDescriptiusPoblacio:
         global conn
         s = QSettings()
         
+        self.dlg.setEnabled(False)
         '''Control d'errors'''
         self.dlg.progressBar.setValue(0)
         self.dlg.progressBar.setVisible(True)
@@ -713,9 +714,13 @@ class MapesDescriptiusPoblacio:
             for i in range (0,len(llistaErrors)):
                 llista += ("- "+llistaErrors[i] + '\n')
             QMessageBox.information(None, "Error", llista)
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
         elif ((not self.dlg.btoEDAT.isChecked()) and (not self.dlg.btoGENERE.isChecked()) and (not self.dlg.btoESTUDIS.isChecked()) and (not self.dlg.btoORIGEN.isChecked()) and (not self.dlg.btoNACIONALITAT.isChecked())):
                 QMessageBox.information(None, "Error 1", "No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
                 print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
         else:
             nom_conn=self.dlg.comboConnexions.currentText()
             select = 'Selecciona connexió'
@@ -765,12 +770,16 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "Error al llegir les edats.\nEls camps edat mínima i edat màxima han d'estar plens")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                         
                         if ((min > max) or (min < 0) or (max <= 0)):
                             QMessageBox.information(None, "Error", "Error:\n minim > màxim o número/s negatiu/s")
                             self.dlg.GrupPestanyes.setCurrentIndex(0)
                             self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                         hora = self.dlg.data.date()
                         horaAct = QtCore.QDateTime.currentDateTime()
@@ -810,6 +819,8 @@ class MapesDescriptiusPoblacio:
                             QMessageBox.information(None, "Error", "Error:\nNo hi ha cap gènere seleccionat.")
                             self.dlg.GrupPestanyes.setCurrentIndex(1)
                             self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
 
                     '''Filtre d'estudis'''
@@ -826,6 +837,8 @@ class MapesDescriptiusPoblacio:
                             QMessageBox.information(None, "Error", "Error:\nNo hi ha cap estudi seleccionat.")
                             self.dlg.GrupPestanyes.setCurrentIndex(2)
                             self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                     
                     '''Filtre d'origen'''
@@ -846,6 +859,8 @@ class MapesDescriptiusPoblacio:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
                                self.dlg.GrupPestanyes.setCurrentIndex(3)
                                self.tornaConnectat()
+                               self.dlg.setEnabled(True)
+                               self.dlg.progressBar.setVisible(False)
                                return 
                         elif self.dlg.btoZones.isChecked():                                 
                             llistaORG = self.dlg.LlistaZonesCont.selectedItems()
@@ -865,6 +880,8 @@ class MapesDescriptiusPoblacio:
                                     message = template.format(type(ex).__name__, ex.args)
                                     print (message)
                                     QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                    self.dlg.setEnabled(True)
+                                    self.dlg.progressBar.setVisible(False)
                                     return
                                 where += '('
                                 for index,row in enumerate(rows,start=0):
@@ -883,6 +900,8 @@ class MapesDescriptiusPoblacio:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
                                self.dlg.GrupPestanyes.setCurrentIndex(3)
                                self.tornaConnectat()
+                               self.dlg.setEnabled(True)
+                               self.dlg.progressBar.setVisible(False)
                                return
                         elif self.dlg.btoEuropa27.isChecked():
                             SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
@@ -896,6 +915,8 @@ class MapesDescriptiusPoblacio:
                                 message = template.format(type(ex).__name__, ex.args)
                                 print (message)
                                 QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
                                 return
                             where += '('
                             for index,row in enumerate(rows,start=0):
@@ -926,6 +947,8 @@ class MapesDescriptiusPoblacio:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
                                self.dlg.GrupPestanyes.setCurrentIndex(4)
                                self.tornaConnectat()
+                               self.dlg.setEnabled(True)
+                               self.dlg.progressBar.setVisible(False)
                                return 
                         elif self.dlg.btoZones_3.isChecked():
                             llistaORG = self.dlg.LlistaZonesCont2.selectedItems()
@@ -946,6 +969,8 @@ class MapesDescriptiusPoblacio:
                                     message = template.format(type(ex).__name__, ex.args)
                                     print (message)
                                     QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                    self.dlg.setEnabled(True)
+                                    self.dlg.progressBar.setVisible(False)
                                     return
                                 where += '('
                                 for index,row in enumerate(rows,start=0):
@@ -958,6 +983,8 @@ class MapesDescriptiusPoblacio:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
                                self.dlg.GrupPestanyes.setCurrentIndex(4)
                                self.tornaConnectat()
+                               self.dlg.setEnabled(True)
+                               self.dlg.progressBar.setVisible(False)
                                return
                         elif self.dlg.btoEuropa27_3.isChecked():
                             SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
@@ -971,6 +998,8 @@ class MapesDescriptiusPoblacio:
                                 message = template.format(type(ex).__name__, ex.args)
                                 print (message)
                                 QMessageBox.information(None, "Error", "Error SELECT concodpai")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
                                 return
                             where += '('
                             for index,row in enumerate(rows,start=0):
@@ -1006,6 +1035,8 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                     '''Per Parcel.les'''
                     if self.dlg.PARCELES.isChecked():
@@ -1027,6 +1058,8 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                             
                     '''Per barris'''
@@ -1051,6 +1084,8 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                             
                     '''Per seccions'''        
@@ -1075,6 +1110,8 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                     '''Per districtes'''       
                     if self.dlg.DISTRICTES.isChecked():
@@ -1099,6 +1136,8 @@ class MapesDescriptiusPoblacio:
                             message = template.format(type(ex).__name__, ex.args)
                             print (message)
                             QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
                             return
                 except Exception as ex:
                     self.tornaConnectat()
@@ -1109,13 +1148,18 @@ class MapesDescriptiusPoblacio:
                     message = template.format(type(ex).__name__, ex.args)
                     print (message)
                     QMessageBox.information(None, "Error", "Error a la connexio")
+                    self.dlg.setEnabled(True)
+                    self.dlg.progressBar.setVisible(False)
                     return
                 self.dlg.progressBar.setValue(100)
                 QApplication.processEvents()
                 self.tornaConnectat()
+                self.dlg.setEnabled(True)
             else:
                 QMessageBox.information(None, "Error", 'No hi ha cap connexió seleccionada.\nSeleccioneu una connexió.')
                 print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
     
     def mostraSHPperPantalla(self, sql, capa):
         global nomBD1
