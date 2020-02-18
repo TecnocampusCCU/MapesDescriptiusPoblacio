@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200214"
+Versio_modul="V_Q3.200218"
 geometria=""
 connexioFeta=False
 
@@ -497,7 +497,7 @@ class MapesDescriptiusPoblacio:
         self.dlg.max.setEnabled(False)
         self.dlg.CB_etiquetes.setChecked(False)
         self.dlg.mida.setValue(8.00)
-
+        self.dlg.setEnabled(True)
         self.dlg.Transparencia_lbl.setText(str(self.dlg.Transparencia.value())+' %')
         
     def on_valuechange_Transparencia(self):
