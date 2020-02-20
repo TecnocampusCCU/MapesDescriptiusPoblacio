@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200218"
+Versio_modul="V_Q3.200220"
 geometria=""
 connexioFeta=False
 
@@ -582,7 +582,7 @@ class MapesDescriptiusPoblacio:
             sql='select distinct("HABNIVINS"),"NINDESCRI" from "public"."Padro" order by 2;';
             self.dlg.LlistaPais.clear()
             self.dlg.LlistaPais2.clear()
-            sql2 = 'select distinct("HABCOMUNA"), "HABNOMUNA" FROM "public"."Padro" where "HABCOPANA" = 66 ORDER BY 2'
+            sql2 = 'select distinct("HABCOMUNA"), "HABNOMUNA" FROM "public"."Padro" where "HABCOPANA" != 108 ORDER BY 2'
             self.dlg.LlistaZonesCont.clear()
             self.dlg.LlistaZonesCont2.clear()
             sql3 = 'select distinct("CONZONCON") FROM "public"."CONTINENTS" WHERE "CONZONCON" IS NOT NULL ORDER BY 1'
@@ -623,7 +623,7 @@ class MapesDescriptiusPoblacio:
                     self.dlg.LlistaPais.item(index).setToolTip(str(desc))
                     self.dlg.LlistaPais2.addItem(desc1)
                     self.dlg.LlistaPais2.item(index).setToolTip(str(desc))
-                    
+                
                 cur.execute(sql3)
                 rows = cur.fetchall()
                 for index,row in enumerate(rows,start=0):
@@ -632,7 +632,6 @@ class MapesDescriptiusPoblacio:
                     self.dlg.LlistaZonesCont.item(index).setToolTip(desc)
                     self.dlg.LlistaZonesCont2.addItem(desc)
                     self.dlg.LlistaZonesCont2.item(index).setToolTip(desc)
-                
                 cur.execute(sql4)
                 rows = cur.fetchall()
                 #print rows[0][0]
@@ -851,7 +850,7 @@ class MapesDescriptiusPoblacio:
                             if len(llistaORG)>0:
                                 for item in llistaORG:
                                     if item.toolTip() != '108':
-                                        where += '"HABCOMUNA" = '+ item.toolTip() + ' AND "HABCOPANA" = 66'+ ' OR '
+                                        where += '"HABCOMUNA" = '+ item.toolTip() + ' AND "HABCOPANA" != 108'+ ' OR '
                                     else:
                                         where += '"HABCOPANA" = 108'+ ' OR '
                                 where=where[0:len(where)-4]
@@ -887,12 +886,12 @@ class MapesDescriptiusPoblacio:
                                 for index,row in enumerate(rows,start=0):
                                     if index == 0:
                                         if row[0] != 108:
-                                            where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" = 66)'
+                                            where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
                                         else:
                                             where += '("HABCOPANA" = 108)'
                                     else:
                                         if row[0] != 108:
-                                            where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" = 66)'
+                                            where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
                                         else:
                                             where += ' or ("HABCOPANA" = 108)'
                                 where += ')'
@@ -922,12 +921,12 @@ class MapesDescriptiusPoblacio:
                             for index,row in enumerate(rows,start=0):
                                 if index == 0:
                                     if row[0] != 108:
-                                        where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" = 66)'
+                                        where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
                                     else:
                                         where += '("HABCOPANA" = 108)'
                                 else:
                                     if row[0] != 108:
-                                        where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" = 66)'
+                                        where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
                                     else:
                                         where += ' or ("HABCOPANA" = 108)'
                             where += ')'
