@@ -609,6 +609,14 @@ class MapesDescriptiusPoblacio:
                     self.dlg.llistaEstudis.addItem(desc1)
                     self.dlg.llistaEstudis.item(index).setToolTip(str(desc))
                 
+            except Exception as ex:
+                msg_error="Error en la sentencia SQL següent:\n"+sql
+                print(msg_error)
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", msg_error)
+            try:
                 cur.execute(sql2)
                 desc1 = int(108)
                 self.dlg.LlistaPais.addItem('ESPANYA')
@@ -624,6 +632,14 @@ class MapesDescriptiusPoblacio:
                     self.dlg.LlistaPais2.addItem(desc1)
                     self.dlg.LlistaPais2.item(index).setToolTip(str(desc))
                 
+            except Exception as ex:
+                msg_error="Error en la sentencia SQL següent:\n"+sql2
+                print(msg_error)
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", msg_error)
+            try:
                 cur.execute(sql3)
                 rows = cur.fetchall()
                 for index,row in enumerate(rows,start=0):
@@ -632,19 +648,30 @@ class MapesDescriptiusPoblacio:
                     self.dlg.LlistaZonesCont.item(index).setToolTip(desc)
                     self.dlg.LlistaZonesCont2.addItem(desc)
                     self.dlg.LlistaZonesCont2.item(index).setToolTip(desc)
-                cur.execute(sql4)
-                rows = cur.fetchall()
-                #print rows[0][0]
-                self.dlg.data.setDateTime(QtCore.QDateTime.fromString(str(rows[0][0]),"d/M/yyyy"))
-                
             except Exception as ex:
-                print ("I am unable to connect to the database")
+                msg_error="Error en la sentencia SQL següent:\n"+sql3
+                print(msg_error)
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
                 print (message)
-                QMessageBox.information(None, "Error", "Error connexio")
-                self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ff7f7f')
-                self.dlg.lblEstatConn.setText('Error: Hi ha algun camp erroni.')
+                QMessageBox.information(None, "Error", msg_error)
+            try:
+                cur.execute(sql4)
+                rows = cur.fetchall()
+                #print rows[0][0]
+                #self.dlg.data.setDateTime(QtCore.QDateTime.fromString(str(rows[0][0]),"d/M/yyyy"))
+                if len(rows)!=0:
+                    self.dlg.data.setDateTime(QtCore.QDateTime.fromString(str(rows[0][0]),"d/M/yyyy"))
+                else:
+                    self.dlg.data.setDateTime(QtCore.QDateTime.currentDateTime())
+                
+            except Exception as ex:
+                msg_error="Error en la sentencia SQL següent:\n"+sql4
+                print(msg_error)
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", msg_error)
                 return
             
         else:
