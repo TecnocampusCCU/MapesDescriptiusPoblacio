@@ -84,7 +84,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200428"
+Versio_modul="V_Q3.200430"
 geometria=""
 connexioFeta=False
 
@@ -1066,10 +1066,10 @@ class MapesDescriptiusPoblacio:
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
                         sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id",b."numbarri",b."nombarri") parcial join\n'
+                        sql2 += 'group by b."id") parcial join\n'
                         sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id",b."numbarri",b."nombarri") total on total."id" = parcial."id"'
+                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
                         self.dlg.progressBar.setValue(65)
                         try:
                             csv = sql1 + where + sql2 + sql3
@@ -1092,10 +1092,10 @@ class MapesDescriptiusPoblacio:
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
                         sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id", b."seccions", b."districte_") parcial join\n'
+                        sql2 += 'group by b."id") parcial join\n'
                         sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id", b."seccions", b."districte_") total on total."id" = parcial."id"'
+                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
                         self.dlg.progressBar.setValue(65)
                         try:
                             csv = sql1 + where + sql2 + sql3
@@ -1118,10 +1118,10 @@ class MapesDescriptiusPoblacio:
                         sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
                         sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id", b."codi", b."cp") parcial join\n'
+                        sql2 += 'group by b."id") parcial join\n'
                         sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
                         sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id", b."codi", b."cp") total on total."id" = parcial."id"'
+                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
                         self.dlg.progressBar.setValue(65)
                         try:
                             csv = sql1 + where + sql2 + sql3
