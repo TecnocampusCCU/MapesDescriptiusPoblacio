@@ -56,7 +56,8 @@ import datetime
 import time
 from qgis.utils import iface
 from PyQt5.QtSql import *
-
+import qgis.utils
+import collections
 # Initialize Qt resources from file resources.py
 from .resources import *
 # Import the code for the dialog
@@ -84,7 +85,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200430"
+Versio_modul="V_Q3.200604"
 geometria=""
 connexioFeta=False
 
@@ -1210,7 +1211,14 @@ class MapesDescriptiusPoblacio:
                 QApplication.processEvents()
                 Area=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 """Es crea un Shape a la carpeta temporal amb la data i hora actual"""
-                error=QgsVectorFileWriter.writeAsVectorFormat(vlayer, os.environ['TMP']+"/Area_"+Area+".shp", "utf-8", vlayer.crs(), "ESRI Shapefile")
+                if (qgis.utils.Qgis.QGIS_VERSION_INT>=31000):
+                    save_options = QgsVectorFileWriter.SaveVectorOptions()
+                    save_options.driverName = "ESRI Shapefile"
+                    save_options.fileEncoding = "UTF-8"
+                    transform_context = QgsProject.instance().transformContext()
+                    error=QgsVectorFileWriter.writeAsVectorFormatV2(vlayer, os.environ['TMP']+"/Area_"+Area+".shp", transform_context,save_options)
+                else:
+                    error=QgsVectorFileWriter.writeAsVectorFormat(vlayer, os.environ['TMP']+"/Area_"+Area+".shp", "utf-8", vlayer.crs(), "ESRI Shapefile")
                 vlayer=None
                 """Es carrega el Shape a l'entorn del QGIS"""
                 vlayer = QgsVectorLayer(os.environ['TMP']+"/Area_"+Area+".shp", titol3, "ogr")
@@ -1264,6 +1272,7 @@ class MapesDescriptiusPoblacio:
                     elif (self.dlg.combo_Tipus.currentText()=='Pretty breaks'):
                         renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.Pretty,mysymbol,colorRamp)
                     renderer.setLabelFormat(format,True)
+                    vlayer.setOpacity(self.dlg.Transparencia.value()/100)
                     vlayer.setRenderer(renderer)
                     self.dlg.progressBar.setValue(80)
                     QApplication.processEvents()
@@ -1301,12 +1310,16 @@ class MapesDescriptiusPoblacio:
                         #vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km^2'")
 
                     layer_settings.placement = 1
-                
+                    layer_settings.scaleVisibility=True
+                    layer_settings.minimumScale=float(self.dlg.max.value())
+                    layer_settings.maximumScale=float(self.dlg.min.value())
                     layer_settings.enabled = True
                 
-                    layer_settings = QgsVectorLayerSimpleLabeling(layer_settings)
+                    settings = QgsVectorLayerSimpleLabeling(layer_settings)
                     vlayer.setLabelsEnabled(True)
-                    vlayer.setLabeling(layer_settings)
+                    vlayer.setLabeling(settings)
+                    vlayer.setScaleBasedVisibility(True)
+
                     vlayer.triggerRepaint()                    
                     """
                     vlayer.setCustomProperty("labeling", "pal")
@@ -1330,6 +1343,7 @@ class MapesDescriptiusPoblacio:
                     vlayer.setCustomProperty("labeling/placement", "1")
                     vlayer.triggerRepaint()
                     """
+                    
                 self.dlg.progressBar.setValue(85)
                 QApplication.processEvents()
                 QgsProject.instance().addMapLayer(vlayer,False)    
