@@ -25,7 +25,7 @@ from os.path import expanduser
 from PyQt5 import QtCore
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5.QtWidgets import QAction,QMessageBox,QTableWidgetItem,QApplication,QSizePolicy,QGridLayout,QDialogButtonBox,QFileDialog,QDockWidget,QProgressBar,QInputDialog,QLineEdit,QColorDialog,QToolBar
+from PyQt5.QtWidgets import QAction,QMessageBox,QTableWidgetItem,QApplication,QSizePolicy,QGridLayout,QDialogButtonBox,QFileDialog,QDockWidget,QProgressBar,QInputDialog,QLineEdit,QColorDialog,QToolBar,QWidget
 from qgis.core import QgsMapLayer
 from qgis.core import QgsDataSourceUri
 from qgis.core import QgsVectorLayer
@@ -49,7 +49,7 @@ from qgis.core import QgsTextFormat
 from qgis.core import QgsTextBufferSettings
 from qgis.core import QgsVectorLayerSimpleLabeling
 from qgis.core import QgsProcessingFeedback, Qgis
-from qgis.gui import QgsMessageBar
+from qgis.gui import QgsMessageBar,QgsTabWidget
 import psycopg2
 import unicodedata
 import datetime
@@ -85,9 +85,10 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200604"
+Versio_modul="V_Q3.200722"
 geometria=""
 connexioFeta=False
+QEstudis=None
 
 class MapesDescriptiusPoblacio:
     """QGIS Plugin Implementation."""
@@ -121,7 +122,16 @@ class MapesDescriptiusPoblacio:
         '''
         Connexio dels botons amb les funcions que han de realitzar
         '''
+                
         self.dlg = MapesDescriptiusPoblacioDialog()
+        self.dlg.Tots_els_habitants.toggled.connect(self.on_click_Tots_habitants)
+        self.dlg.Cmb_Metode.currentIndexChanged.connect(self.on_Change_Metode)
+        self.dlg.Cmb_Calcul.currentIndexChanged.connect(self.on_Change_Calcul)
+        self.dlg.lbl_EDAT.clicked.connect(self.on_click_lbl_EDAT)
+        self.dlg.lbl_GENERE.clicked.connect(self.on_click_lbl_GENERE)
+        self.dlg.lbl_ESTUDIS.clicked.connect(self.on_click_lbl_ESTUDIS)
+        self.dlg.lbl_ORIGEN.clicked.connect(self.on_click_lbl_ORIGEN)
+        self.dlg.lbl_NACIONALITAT.clicked.connect(self.on_click_lbl_NACIONALITAT)
         self.dlg.btoSortir.clicked.connect(self.on_click_Sortir)
         self.dlg.btoHome.toggled.connect(self.on_click_MarcarBotoHome)
         self.dlg.btoDona.toggled.connect(self.on_click_MarcarBotoDona)
@@ -142,11 +152,6 @@ class MapesDescriptiusPoblacio:
         self.dlg.CB_etiquetes.stateChanged.connect(self.on_checkAddTags)
         self.dlg.RB_color.toggled.connect(self.on_checkRB_color)
         self.dlg.RB_degradat.toggled.connect(self.on_checkRB_degradat)
-        self.dlg.ILLES.toggled.connect(self.on_checkRB_ILLES)
-        self.dlg.PARCELES.toggled.connect(self.on_checkRB_PARCELES)
-        self.dlg.SECCIONS.toggled.connect(self.on_checkRB_SECCIONS)
-        self.dlg.BARRIS.toggled.connect(self.on_checkRB_BARRIS)
-        self.dlg.DISTRICTES.toggled.connect(self.on_checkRB_DISTRICTES)
         self.dlg.Transparencia.valueChanged.connect(self.on_valuechange_Transparencia)
 
         # Declare instance attributes
@@ -293,6 +298,31 @@ class MapesDescriptiusPoblacio:
         else:
             self.dlg.LlistaZonesCont2.setEnabled(False)
                   
+    def on_click_Tots_habitants(self,enabled):
+        if enabled:
+            self.dlg.grupMarge.setEnabled(False)
+        else:
+            self.dlg.grupMarge.setEnabled(True)
+            
+    def on_click_lbl_EDAT(self):
+        self.dlg.GrupPestanyes.setCurrentIndex(0)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
+    
+    def on_click_lbl_GENERE(self):
+        self.dlg.GrupPestanyes.setCurrentIndex(1)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
+    
+    def on_click_lbl_ESTUDIS(self):
+        self.dlg.GrupPestanyes.setCurrentIndex(2)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
+    
+    def on_click_lbl_ORIGEN(self):
+        self.dlg.GrupPestanyes.setCurrentIndex(3)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
+    
+    def on_click_lbl_NACIONALITAT(self):
+        self.dlg.GrupPestanyes.setCurrentIndex(4)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
     
     def on_click_Sortir(self):
         '''
@@ -335,11 +365,22 @@ class MapesDescriptiusPoblacio:
         Activa o desactiva el boto de filtre
         d'Edat.
         '''
+        
         if clicked:
             self.dlg.btoEDAT.setStyleSheet('background-color: #7fff7f')
-            self.dlg.GrupPestanyes.setCurrentIndex(0)
+            self.dlg.GrupPestanyes.setTabEnabled(0,True)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(0,QColor(0,0,0))
+            self.dlg.lbl_EDAT.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(0, 0, 0);background-color: rgb(255, 217, 128);min-width: 80px;}')
+            self.dlg.lbl_EDAT.setToolTip('ON')
+            self.dlg.lbl_EDAT.setEnabled(True)
         else:
             self.dlg.btoEDAT.setStyleSheet('background-color: rgb(227, 227, 227)')
+            self.dlg.GrupPestanyes.setTabEnabled(0,False)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(0,QColor(170,170,170))
+            self.dlg.lbl_EDAT.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(170, 170, 170);background-color: rgb(206, 206, 206);min-width: 80px;}')
+            self.dlg.lbl_EDAT.setToolTip('OFF')
+            self.dlg.lbl_EDAT.setEnabled(False)
+        self.dlg.GrupPestanyes.setCurrentIndex(0)
     
     def on_click_MarcarBotoGENERE(self, clicked):
         '''
@@ -348,9 +389,19 @@ class MapesDescriptiusPoblacio:
         '''
         if clicked:
             self.dlg.btoGENERE.setStyleSheet('background-color: #7fff7f')
-            self.dlg.GrupPestanyes.setCurrentIndex(1)
+            self.dlg.GrupPestanyes.setTabEnabled(1,True)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(1,QColor(0,0,0))
+            self.dlg.lbl_GENERE.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(0, 0, 0);background-color: rgb(255, 217, 128);min-width: 80px;}')
+            self.dlg.lbl_GENERE.setToolTip('ON')
+            self.dlg.lbl_GENERE.setEnabled(True)
         else:
             self.dlg.btoGENERE.setStyleSheet('background-color: rgb(227, 227, 227)')
+            self.dlg.GrupPestanyes.setTabEnabled(1,False)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(1,QColor(170,170,170))
+            self.dlg.lbl_GENERE.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(170, 170, 170);background-color: rgb(206, 206, 206);min-width: 80px;}')
+            self.dlg.lbl_GENERE.setToolTip('OFF')
+            self.dlg.lbl_GENERE.setEnabled(False)
+        self.dlg.GrupPestanyes.setCurrentIndex(1)
             
     def on_click_MarcarBotoESTUDIS(self, clicked):
         '''
@@ -359,9 +410,20 @@ class MapesDescriptiusPoblacio:
         '''
         if clicked:
             self.dlg.btoESTUDIS.setStyleSheet('background-color: #7fff7f')
-            self.dlg.GrupPestanyes.setCurrentIndex(2)
+            self.dlg.GrupPestanyes.setTabEnabled(2,True)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(2,QColor(0,0,0))
+            self.dlg.lbl_ESTUDIS.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(0, 0, 0);background-color: rgb(255, 217, 128);min-width: 80px;}')
+            self.dlg.lbl_ESTUDIS.setToolTip('ON')
+            self.dlg.lbl_ESTUDIS.setEnabled(True)
         else:
             self.dlg.btoESTUDIS.setStyleSheet('background-color: rgb(227, 227, 227)')
+            self.dlg.GrupPestanyes.setTabEnabled(2,False)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(2,QColor(170,170,170))
+            self.dlg.lbl_ESTUDIS.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(170, 170, 170);background-color: rgb(206, 206, 206);min-width: 80px;}')
+            self.dlg.lbl_ESTUDIS.setToolTip('OFF')
+            self.dlg.lbl_ESTUDIS.setEnabled(False)
+        self.dlg.GrupPestanyes.setCurrentIndex(2)
+            
             
     def on_click_MarcarBotoORIGEN(self, clicked):
         '''
@@ -370,9 +432,20 @@ class MapesDescriptiusPoblacio:
         '''
         if clicked:
             self.dlg.btoORIGEN.setStyleSheet('background-color: #7fff7f')
-            self.dlg.GrupPestanyes.setCurrentIndex(3)
+            self.dlg.GrupPestanyes.setTabEnabled(3,True)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(3,QColor(0,0,0))
+            self.dlg.lbl_ORIGEN.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(0, 0, 0);background-color: rgb(255, 217, 128);min-width: 80px;}')
+            self.dlg.lbl_ORIGEN.setToolTip('ON')
+            self.dlg.lbl_ORIGEN.setEnabled(True)
         else:
             self.dlg.btoORIGEN.setStyleSheet('background-color: rgb(227, 227, 227)')
+            self.dlg.GrupPestanyes.setTabEnabled(3,False)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(3,QColor(170,170,170))
+            self.dlg.lbl_ORIGEN.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(170, 170, 170);background-color: rgb(206, 206, 206);min-width: 80px;}')
+            self.dlg.lbl_ORIGEN.setToolTip('OFF')
+            self.dlg.lbl_ORIGEN.setEnabled(False)
+        self.dlg.GrupPestanyes.setCurrentIndex(3)
+
     
     def on_click_MarcarBotoNACIONALITAT(self, clicked):
         '''
@@ -381,9 +454,19 @@ class MapesDescriptiusPoblacio:
         '''
         if clicked:
             self.dlg.btoNACIONALITAT.setStyleSheet('background-color: #7fff7f')
-            self.dlg.GrupPestanyes.setCurrentIndex(4)
+            self.dlg.GrupPestanyes.setTabEnabled(4,True)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(4,QColor(0,0,0))
+            self.dlg.lbl_NACIONALITAT.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(0, 0, 0);background-color: rgb(255, 217, 128);min-width: 80px;}')
+            self.dlg.lbl_NACIONALITAT.setToolTip('ON')
+            self.dlg.lbl_NACIONALITAT.setEnabled(True)
         else:
             self.dlg.btoNACIONALITAT.setStyleSheet('background-color: rgb(227, 227, 227)')
+            self.dlg.GrupPestanyes.setTabEnabled(4,False)
+            self.dlg.GrupPestanyes.tabBar().setTabTextColor(4,QColor(170,170,170))
+            self.dlg.lbl_NACIONALITAT.setStyleSheet('QPushButton {border-radius: 2px;color: rgb(170, 170, 170);background-color: rgb(206, 206, 206);min-width: 80px;}')
+            self.dlg.lbl_NACIONALITAT.setToolTip('OFF')
+            self.dlg.lbl_NACIONALITAT.setEnabled(False)
+        self.dlg.GrupPestanyes.setCurrentIndex(4)
             
     def on_checkRB_color(self, enabled):
         if enabled:
@@ -391,7 +474,7 @@ class MapesDescriptiusPoblacio:
             self.dlg.Transparencia.setEnabled(True)
         else:
             self.dlg.color.setEnabled(False)
-            self.dlg.Transparencia.setEnabled(False)
+            self.dlg.Transparencia.setEnabled(True)
     
     def on_checkRB_degradat(self, enabled):
         if enabled:
@@ -403,36 +486,18 @@ class MapesDescriptiusPoblacio:
             self.dlg.LE_rang.setEnabled(False)
             self.dlg.combo_Tipus.setEnabled(False)
 
-    def on_checkRB_ILLES(self, enabled):
-        if enabled:
-            self.dlg.min.setValue(3000.00)
-            self.dlg.max.setValue(25000.00)
-            self.dlg.mida.setValue(9.00)
-                
-    def on_checkRB_PARCELES(self, enabled):
-        if enabled:
-            self.dlg.min.setValue(1000.00)
-            self.dlg.max.setValue(17000.00)
-            self.dlg.mida.setValue(8.00)
-                
-    def on_checkRB_SECCIONS(self, enabled):
-        if enabled:
-            self.dlg.min.setValue(5000.00)
-            self.dlg.max.setValue(50000.00)
-            self.dlg.mida.setValue(12.00)
-    
-    def on_checkRB_BARRIS(self, enabled):
-        if enabled:
-            self.dlg.min.setValue(5000.00)
-            self.dlg.max.setValue(50000.00)
-            self.dlg.mida.setValue(12.00)
-                
-    def on_checkRB_DISTRICTES(self, enabled):
-        if enabled:
-            self.dlg.min.setValue(5000.00)
-            self.dlg.max.setValue(50000.00)
-            self.dlg.mida.setValue(20.00)
 
+    def Indicadors_selected(self):
+        if self.dlg.Cmb_Calcul.currentIndex() in [7,8,9,10,11,12,13,14]:
+            return True
+        else: 
+            return False     
+    def Calcul_habitants_selected(self):
+        if self.dlg.Cmb_Calcul.currentIndex() in [2,3,4]:
+            return True 
+        else: 
+            return False     
+                            
     
     def EstatInicial(self):
         '''
@@ -442,6 +507,7 @@ class MapesDescriptiusPoblacio:
         global micolor
         global micolorTag
         global Versio_modul
+        global QEstudis
         self.dlg.progressBar.setValue(0)
         self.dlg.progressBar.setVisible(False)
         self.dlg.progressBar.setMaximum(100)
@@ -454,10 +520,12 @@ class MapesDescriptiusPoblacio:
         self.dlg.colorTag.setStyleSheet('border:1px solid #000000; background-color: #800080')
         self.dlg.versio.setText(Versio_modul)
         self.dlg.GrupPestanyes.setCurrentIndex(0)
-        self.dlg.pestanyesPrincipals.setCurrentIndex(1)
-        self.dlg.ILLES.setChecked(True)
-        self.dlg.RB_absoluts.setChecked(True)
+        self.dlg.pestanyesPrincipals.setCurrentIndex(0)
+        self.dlg.Cmb_Metode.setCurrentIndex(1)
+        #self.dlg.RB_absoluts.setChecked(True)
         self.dlg.RB_color.setChecked(True)
+        #self.dlg.I_dummy.setChecked(True)
+        #self.dlg.I_dummy.setVisible(False)
         self.dlg.color.setEnabled(True)
         self.dlg.Transparencia.setEnabled(True)
         self.dlg.ColorDegradat.setEnabled(False)
@@ -500,7 +568,21 @@ class MapesDescriptiusPoblacio:
         self.dlg.mida.setValue(8.00)
         self.dlg.setEnabled(True)
         self.dlg.Transparencia_lbl.setText(str(self.dlg.Transparencia.value())+' %')
-        
+        self.dlg.GrupPestanyes.setTabEnabled(0,False)
+        self.dlg.GrupPestanyes.setTabEnabled(1,False)
+        self.dlg.GrupPestanyes.setTabEnabled(2,False)
+        self.dlg.GrupPestanyes.setTabEnabled(3,False)
+        self.dlg.GrupPestanyes.setTabEnabled(4,False)
+        self.SetTooltipIndicadors()
+    
+    def SetTooltipIndicadors(self):
+        self.dlg.Cmb_Calcul.setItemData(8,"(Pob >=65a / Pob <=15a)*100 per u.t.",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(9,"(Pob>=85a / Pob>=65a)*100 per u.t.",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(10,"(Pob entre 60 i 64a / Pob entre 15 i 19a)*100 per u.t.",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(11,"(Pob <=15a / Pob entre 16 i 64a)*100 per u.t.",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(12,"(Pob >=65a / Pob entre 16 i 64a)*100 per u.t.",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(13,"(Pob de nacionalitat no espanyola) / Pob total)*100",QtCore.Qt.ToolTipRole)
+        self.dlg.Cmb_Calcul.setItemData(14,"(Pob <=14a / Dones entre 15 i 49a)*1000",QtCore.Qt.ToolTipRole)
     def on_valuechange_Transparencia(self):
         """Aquesta es una funcio auxiliar que canvia el valor de la etiqueta associada a la transperencia de la capa escollida"""
         self.dlg.Transparencia_lbl.setText(str(self.dlg.Transparencia.value())+' %')
@@ -543,6 +625,35 @@ class MapesDescriptiusPoblacio:
         pep=self.dlg.color.palette().color(1)
         pass
     
+    def on_Change_Metode(self):
+        if self.dlg.Cmb_Metode.currentIndex()==1:
+            self.dlg.min.setValue(3000.00)
+            self.dlg.max.setValue(25000.00)
+            self.dlg.mida.setValue(9.00)
+        if self.dlg.Cmb_Metode.currentIndex()==2:
+            self.dlg.min.setValue(1000.00)
+            self.dlg.max.setValue(17000.00)
+            self.dlg.mida.setValue(8.00)
+        if self.dlg.Cmb_Metode.currentIndex()==3:
+            self.dlg.min.setValue(5000.00)
+            self.dlg.max.setValue(50000.00)
+            self.dlg.mida.setValue(12.00)
+        if self.dlg.Cmb_Metode.currentIndex()==4:
+            self.dlg.min.setValue(5000.00)
+            self.dlg.max.setValue(50000.00)
+            self.dlg.mida.setValue(12.00)
+        if self.dlg.Cmb_Metode.currentIndex()==5:
+            self.dlg.min.setValue(5000.00)
+            self.dlg.max.setValue(50000.00)
+            self.dlg.mida.setValue(20.00)
+
+    def on_Change_Calcul(self):
+        if self.dlg.Cmb_Calcul.currentIndex() in [2,3,4,7,8,9,10,11,12,13,14]:
+            self.dlg.Cmb_Calcul.setToolTip(self.dlg.Cmb_Calcul.itemData(self.dlg.Cmb_Calcul.currentIndex(),QtCore.Qt.ToolTipRole))
+        else:
+            self.dlg.Cmb_Calcul.setCurrentIndex(0)
+            self.dlg.Cmb_Calcul.setToolTip(self.dlg.Cmb_Calcul.itemData(self.dlg.Cmb_Calcul.currentIndex(),QtCore.Qt.ToolTipRole))
+
     def on_Change_ComboConn(self):
         '''
         En el moment en que es modifica la opcio escollida 
@@ -689,7 +800,7 @@ class MapesDescriptiusPoblacio:
                 errors.append("El número de rangs no pot ser negatiu")
         except:
             errors.append("El número de rangs no és vàlid")
-        if self.dlg.btoEDAT.isChecked():
+        if (self.dlg.btoEDAT.isChecked() and not(self.dlg.Tots_els_habitants.isChecked())):
             numero2 = -2
             numero3 = -3   
             try:
@@ -744,10 +855,20 @@ class MapesDescriptiusPoblacio:
             self.dlg.setEnabled(True)
             self.dlg.progressBar.setVisible(False)
         elif ((not self.dlg.btoEDAT.isChecked()) and (not self.dlg.btoGENERE.isChecked()) and (not self.dlg.btoESTUDIS.isChecked()) and (not self.dlg.btoORIGEN.isChecked()) and (not self.dlg.btoNACIONALITAT.isChecked())):
-                QMessageBox.information(None, "Error 1", "No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
-                print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
-                self.dlg.setEnabled(True)
-                self.dlg.progressBar.setVisible(False)
+            QMessageBox.information(None, "Error 1", "No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+            print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
+        elif (not(self.Calcul_habitants_selected()) and not (self.Indicadors_selected())):
+            QMessageBox.information(None, "Error 2", "No hi ha cap sortida seleccionada.\nSeleccioneu una sortida.")
+            print ("No hi ha cap sortida seleccionada.\nSeleccioneu una sortida.")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
+        elif self.dlg.Cmb_Metode.currentIndex()==0:
+            QMessageBox.information(None, "Error 3", "No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
+            print ("No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
         else:
             nom_conn=self.dlg.comboConnexions.currentText()
             select = 'Selecciona connexió'
@@ -772,6 +893,15 @@ class MapesDescriptiusPoblacio:
                 where = 'where '      
                 
                 #self.mostraSHPperPantalla("", "Parceles")
+                missatge=""
+                if self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14]:
+                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre d'EDAT proposat.\n"
+                if self.dlg.Cmb_Calcul.currentIndex() in [14]:
+                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de GENERE proposat.\n"
+                if self.dlg.Cmb_Calcul.currentIndex() in [13]:
+                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de NACIONALITAT proposat."
+                if missatge != "":
+                    QMessageBox.information(None, "Informació del mòdul", missatge)
                 
                 try:
                     self.dlg.progressBar.setValue(25)
@@ -786,8 +916,14 @@ class MapesDescriptiusPoblacio:
                         max = 0
                         min = 0
                         try:
-                            max = int(self.dlg.txtEdatMax.text())
-                            min = int(self.dlg.txtEdatMin.text())
+                            if self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14]:
+                                self.dlg.Tots_els_habitants.setChecked(True)
+                            if self.dlg.Tots_els_habitants.isChecked():
+                                max=200
+                                min=0
+                            else:
+                                max = int(self.dlg.txtEdatMax.text())
+                                min = int(self.dlg.txtEdatMin.text())
                             
                         except Exception as ex:
                             self.dlg.GrupPestanyes.setCurrentIndex(0)
@@ -834,6 +970,8 @@ class MapesDescriptiusPoblacio:
                                 where += '"HABFECNAC" > to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "HABFECNAC" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
                     
                     '''Filtre de genere'''    
+                    if self.dlg.Cmb_Calcul.currentIndex() in [14]:
+                        self.dlg.btoGENERE.setChecked(False)                        
                     if self.dlg.btoGENERE.isChecked():
                         self.dlg.progressBar.setValue(35)
                         if self.dlg.btoEDAT.isChecked():
@@ -857,9 +995,11 @@ class MapesDescriptiusPoblacio:
                            where += ' AND '
                         llistaEST = self.dlg.llistaEstudis.selectedItems()
                         if len(llistaEST)>0:
+                            where += '('
                             for item in llistaEST:
                                 where += '"HABNIVINS" = '+ item.toolTip()+ ' OR '
                             where=where[0:len(where)-4]
+                            where += ')'
                         else:
                             QMessageBox.information(None, "Error", "Error:\nNo hi ha cap estudi seleccionat.")
                             self.dlg.GrupPestanyes.setCurrentIndex(2)
@@ -876,12 +1016,14 @@ class MapesDescriptiusPoblacio:
                         if self.dlg.btoPais.isChecked():
                             llistaORG = self.dlg.LlistaPais.selectedItems()
                             if len(llistaORG)>0:
+                                where += '('
                                 for item in llistaORG:
                                     if item.toolTip() != '108':
                                         where += '"HABCOMUNA" = '+ item.toolTip() + ' AND "HABCOPANA" != 108'+ ' OR '
                                     else:
                                         where += '"HABCOPANA" = 108'+ ' OR '
                                 where=where[0:len(where)-4]
+                                where += ')'
                             else:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
                                self.dlg.GrupPestanyes.setCurrentIndex(3)
@@ -960,16 +1102,22 @@ class MapesDescriptiusPoblacio:
                             where += ')'
                     
                     '''Filtre de nacionalitat'''
+                    if self.dlg.Cmb_Calcul.currentIndex() in [13]:
+                        self.dlg.btoNACIONALITAT.setChecked(False)                        
                     if self.dlg.btoNACIONALITAT.isChecked():
                         self.dlg.progressBar.setValue(50)
+                        
                         if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked() or self.dlg.btoESTUDIS.isChecked() or self.dlg.btoORIGEN.isChecked():
                            where += ' AND '
                         if self.dlg.btoPais_3.isChecked():
                             llistaORG = self.dlg.LlistaPais2.selectedItems()
                             if len(llistaORG)>0:
+                                where += '('
                                 for item in llistaORG:
                                     where += '"HABNACION" = '+ item.toolTip() + ' OR '
                                 where=where[0:len(where)-4]
+                                where += ')'
+                                
                             else:
                                QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
                                self.dlg.GrupPestanyes.setCurrentIndex(4)
@@ -1040,15 +1188,30 @@ class MapesDescriptiusPoblacio:
                     self.dlg.progressBar.setValue(55)
                     '''Execució de la sentencia SQL'''
                     '''Per ILLES'''
-                    if self.dlg.ILLES.isChecked():
-                        sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                        sql1 += 'from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
-                        sql2 = 'group by i."D_S_I", i."id") parcial join\n'
-                        sql2 += '(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
-                        sql2 += 'group by i."D_S_I", i."id") total on total."id" = parcial."id"'
+                    if self.dlg.Cmb_Metode.currentIndex()==1:
+                    #if self.dlg.ILLES.isChecked():
+                        #if self.dlg.Tab_calcul.currentIndex()==1:
+                        if self.Indicadors_selected():
+                            csv=self.Retorna_Indicador(where,"Illes")
+    
+                            if csv=="error":
+                                self.tornaConnectat()
+                                template = "No hi ha cap Indicador sel·lecionat."
+                                #message = template.format(type(ex).__name__, ex.args)
+                                #print (message)
+                                QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                        else:
+                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
+                            sql1 += 'from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
+                            sql2 = 'group by i."D_S_I", i."id") parcial join\n'
+                            sql2 += '(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
+                            sql2 += 'group by i."D_S_I", i."id") total on total."id" = parcial."id"'
+                            csv = sql1 + where + sql2
                         self.dlg.progressBar.setValue(65)
                         try:
-                            csv = sql1 + where + sql2
                             self.mostraSHPperPantalla(csv, "Illes")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
@@ -1066,15 +1229,30 @@ class MapesDescriptiusPoblacio:
                             self.dlg.progressBar.setVisible(False)
                             return
                     '''Per Parcel.les'''
-                    if self.dlg.PARCELES.isChecked():
-                        sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                        sql1 += 'from (select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
-                        sql2 = 'group by pa."id",pa."UTM") parcial join\n'
-                        sql2 += '(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
-                        sql2 += 'group by pa."id",pa."UTM")total on total."id" = parcial."id"'
+                    if self.dlg.Cmb_Metode.currentIndex()==2:
+                    #if self.dlg.PARCELES.isChecked():
+                        if self.Indicadors_selected():
+                        #if self.dlg.Tab_calcul.currentIndex()==1:
+                            csv=self.Retorna_Indicador(where,"Parceles")
+    
+                            if csv=="error":
+                                self.tornaConnectat()
+                                template = "No hi ha cap Indicador sel·lecionat."
+                                #message = template.format(type(ex).__name__, ex.args)
+                                #print (message)
+                                QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                        else:
+                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
+                            sql1 += 'from (select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
+                            sql2 = 'group by pa."id",pa."UTM") parcial join\n'
+                            sql2 += '(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
+                            sql2 += 'group by pa."id",pa."UTM")total on total."id" = parcial."id"'
+                            csv = sql1 + where + sql2
                         self.dlg.progressBar.setValue(65)
                         try:
-                            csv = sql1 + where + sql2
                             self.mostraSHPperPantalla(csv, "Parceles")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
@@ -1089,18 +1267,73 @@ class MapesDescriptiusPoblacio:
                             self.dlg.progressBar.setVisible(False)
                             return
                             
-                    '''Per barris'''
-                    if self.dlg.BARRIS.isChecked():
-                        sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                        sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id") parcial join\n'
-                        sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
+                    '''Per seccions'''        
+                    if self.dlg.Cmb_Metode.currentIndex()==3:
+                    #if self.dlg.SECCIONS.isChecked():
+                        if self.Indicadors_selected():
+                        #if self.dlg.Tab_calcul.currentIndex()==1:
+                            csv=self.Retorna_Indicador(where,"Seccions")
+    
+                            if csv=="error":
+                                self.tornaConnectat()
+                                template = "No hi ha cap Indicador sel·lecionat."
+                                #message = template.format(type(ex).__name__, ex.args)
+                                #print (message)
+                                QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                        else:
+                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
+                            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql2 += 'group by b."id") parcial join\n'
+                            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql3 += 'group by b."id") total on total."id" = parcial."id"'
+                            csv = sql1 + where + sql2 + sql3
                         self.dlg.progressBar.setValue(65)
                         try:
+                            self.mostraSHPperPantalla(csv, "Seccions")
+                            self.dlg.progressBar.setValue(90)
+                            QApplication.processEvents()
+                        except Exception as ex:
+                            self.tornaConnectat()
+                            print("Error modificar la TaulaResum 4")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
+                            QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return
+                    '''Per barris'''
+                    if self.dlg.Cmb_Metode.currentIndex()==4:
+                    #if self.dlg.BARRIS.isChecked():
+                        if self.Indicadors_selected():
+                        #if self.dlg.Tab_calcul.currentIndex()==1:
+                            csv=self.Retorna_Indicador(where,"Barris")
+    
+                            if csv=="error":
+                                self.tornaConnectat()
+                                template = "No hi ha cap Indicador sel·lecionat."
+                                #message = template.format(type(ex).__name__, ex.args)
+                                #print (message)
+                                QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                        else:
+                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
+                            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql2 += 'group by b."id") parcial join\n'
+                            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Barris" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql3 += 'group by b."id") total on total."id" = parcial."id"'
                             csv = sql1 + where + sql2 + sql3
+                        self.dlg.progressBar.setValue(65)
+                        try:
                             self.mostraSHPperPantalla(csv, "Barris")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
@@ -1115,44 +1348,34 @@ class MapesDescriptiusPoblacio:
                             self.dlg.progressBar.setVisible(False)
                             return
                             
-                    '''Per seccions'''        
-                    if self.dlg.SECCIONS.isChecked():
-                        sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                        sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id") parcial join\n'
-                        sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "Seccions" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
-                        self.dlg.progressBar.setValue(65)
-                        try:
-                            csv = sql1 + where + sql2 + sql3
-                            self.mostraSHPperPantalla(csv, "Seccions")
-                            self.dlg.progressBar.setValue(90)
-                            QApplication.processEvents()
-                        except Exception as ex:
-                            self.tornaConnectat()
-                            print("Error modificar la TaulaResum 4")
-                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                            message = template.format(type(ex).__name__, ex.args)
-                            print (message)
-                            QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
                     '''Per districtes'''       
-                    if self.dlg.DISTRICTES.isChecked():
+                    if self.dlg.Cmb_Metode.currentIndex()==5:
+                    #if self.dlg.DISTRICTES.isChecked():
+                        if self.Indicadors_selected():
+                        #if self.dlg.Tab_calcul.currentIndex()==1:
+                            csv=self.Retorna_Indicador(where,"DistrictesPostals")
+    
+                            if csv=="error":
+                                self.tornaConnectat()
+                                template = "No hi ha cap Indicador sel·lecionat."
+                                #message = template.format(type(ex).__name__, ex.args)
+                                #print (message)
+                                QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                        else:
                        
-                        sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                        sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql2 += 'group by b."id") parcial join\n'
-                        sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                        sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                        sql3 += 'group by b."id") total on total."id" = parcial."id"'
+                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
+                            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql2 += 'group by b."id") parcial join\n'
+                            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "DistrictesPostals" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                            sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
+                            sql3 += 'group by b."id") total on total."id" = parcial."id"'
+                            csv = sql1 + where + sql2 + sql3
                         self.dlg.progressBar.setValue(65)
                         try:
-                            csv = sql1 + where + sql2 + sql3
                             self.mostraSHPperPantalla(csv, "Districtes")
                             self.dlg.progressBar.setValue(90)
                             QApplication.processEvents()
@@ -1201,7 +1424,7 @@ class MapesDescriptiusPoblacio:
             uri.setConnection(host1,port1,nomBD1,usuari1,contra1)
             print ("Connectat")
             uri.setDataSource("","("+sql+")","geom","","id")
-            titol3=capa
+            titol3=capa + " " + self.dlg.Cmb_Calcul.currentText()
             
             vlayer = QgsVectorLayer(uri.uri(False), titol3, "postgres")
             self.dlg.progressBar.setValue(70)
@@ -1231,16 +1454,32 @@ class MapesDescriptiusPoblacio:
                     vlayer.setOpacity(self.dlg.Transparencia.value()/100)
                     self.dlg.progressBar.setValue(80)
                 else:
-                    if self.dlg.RB_absoluts.isChecked():
+                    #Edat
+                    if self.dlg.Cmb_Calcul.currentIndex()==7: 
+                        fieldname="Index"
+                        template = "%1 - %2 anys"
+                    #Envelliment,sobreenvelliment, recanvi, dependencia juvenil,dependencia senil,% poblacio estrangera
+                    if self.dlg.Cmb_Calcul.currentIndex() in range(8,14): 
+                        fieldname="Index"
+                        template = "%1 - %2 %"
+                    #nens- dones fertils
+                    if self.dlg.Cmb_Calcul.currentIndex()==14: 
+                        fieldname="Index"
+                        template = "%1 - %2 ‰"
+                    #habitants absoluts
+                    if self.dlg.Cmb_Calcul.currentIndex()==2: 
                         fieldname="Habitants"
                         template = "%1 - %2 habitants"
-                    elif self.dlg.RB_relatius.isChecked():
+                    #habitants relatius
+                    if self.dlg.Cmb_Calcul.currentIndex()==3: 
                         fieldname="hab_rel"
                         template = "%1 - %2 %"
-                    else:
+                    #densitat
+                    if self.dlg.Cmb_Calcul.currentIndex()==4: 
                         fieldname="densitat_9"
                         template = "%1 - %2 habitants/km^2"
                     
+
                     numberOfClasses=int(float(self.dlg.LE_rang.text()))
                     myRangeList=[]
                     mysymbol=QgsFillSymbol()
@@ -1293,21 +1532,33 @@ class MapesDescriptiusPoblacio:
                     """
                     text_format.setColor(QColor.fromRgb(micolorTag.red(),micolorTag.green(),micolorTag.blue()))
                     layer_settings.setFormat(text_format)
-                
-                    if self.dlg.RB_absoluts.isChecked():
-                        layer_settings.fieldName = "Habitants"
-                    elif self.dlg.RB_relatius.isChecked():
-                        #vlayer.setCustomProperty("labeling/isExpression", True)
-                        layer_settings.isExpression=True
-                        layer_settings.fieldName = "to_string( hab_rel) + '%'"
 
-                        #vlayer.setCustomProperty("labeling/fieldName", "to_string( hab_rel) + '%'")
-                        QApplication.processEvents()
-                    else:
+                    #Edat
+                    if self.dlg.Cmb_Calcul.currentIndex()==7: 
+                        layer_settings.fieldName = "Index"
+                    #Envelliment,sobreenvelliment, recanvi, dependencia juvenil,dependencia senil,% poblacio estrangera
+                    if self.dlg.Cmb_Calcul.currentIndex() in range(8,14): 
+                        layer_settings.isExpression=True
+                        layer_settings.fieldName = "to_string(Index) + ' %'"
+                    #nens- dones fertils
+                    if self.dlg.Cmb_Calcul.currentIndex()==14: 
+                        layer_settings.isExpression=True
+                        layer_settings.fieldName = "to_string(Index) + ' ‰'"
+                    #habitants absoluts
+                    if self.dlg.Cmb_Calcul.currentIndex()==2: 
+                        layer_settings.fieldName = "Habitants"
+                    #habitants relatius
+                    if self.dlg.Cmb_Calcul.currentIndex()==3: 
+                        layer_settings.isExpression=True
+                        layer_settings.fieldName = "to_string(hab_rel) + ' %'"
+                    #densitat
+                    if self.dlg.Cmb_Calcul.currentIndex()==4: 
                         layer_settings.isExpression=True
                         layer_settings.fieldName = "to_string(densitat_9)+ ' hab/km^2'"
+
                         #vlayer.setCustomProperty("labeling/isExpression", True)
                         #vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km^2'")
+                    QApplication.processEvents()
 
                     layer_settings.placement = 1
                     layer_settings.scaleVisibility=True
@@ -1356,8 +1607,13 @@ class MapesDescriptiusPoblacio:
             else:
                 print("Error vector layer")
             QApplication.processEvents()
-        except:
+        except Exception as ex:
             print ("Error a la connexio")
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print (message)
+            QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+            
     
     def tornaConnectat(self):
         '''
@@ -1405,6 +1661,107 @@ class MapesDescriptiusPoblacio:
                 combo.insertItem(0,predef)
                 combo.setCurrentIndex(0)
         combo.blockSignals (False)
+
+    def Retorna_Indicador(self,where,Entitat):
+        # ILLES
+        if Entitat=="Illes":
+            
+            # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
+            sql1 += 'from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
+            sql2 = 'group by i."D_S_I", i  ."id") numerador join \n'
+            sql2 += '(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"'
+            sql3 = 'group by i."D_S_I", i."id") denominador\n'
+            sql3 += 'on denominador."id" = numerador."id"'
+            # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+            
+            #Edat
+            if self.dlg.Cmb_Calcul.currentIndex()==7: 
+                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
+                sql1 += 'from (select i.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"\n'
+                sql2 = 'group by i."D_S_I", i  ."id") numerador\n'
+                csv = sql1 + where + sql2
+            else:
+                csv=self.Where_Indicadors(sql1,sql2,sql3,where)
+                #print (csv)
+        
+        # PARCELES
+        if Entitat=="Parceles":
+            # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
+            sql1 += 'from (select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
+            sql2 = 'group by pa."id",pa."UTM") numerador join \n'
+            sql2 += '(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"'
+            sql3 = 'group by pa."id",pa."UTM") denominador\n'
+            sql3 += 'on denominador."id" = numerador."id"'
+            # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+        
+            #Edat
+            if self.dlg.Cmb_Calcul.currentIndex()==7: 
+                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
+                sql1 += 'from (select pa.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"\n'
+                sql2 = 'group by pa."id",pa."UTM") numerador\n'
+                csv = sql1 + where + sql2
+            else:
+                csv=self.Where_Indicadors(sql1,sql2,sql3,where)
+        
+        # SECCIONS
+        if (Entitat=="Seccions" or Entitat=="Barris" or Entitat=="DistrictesPostals"):
+            # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
+            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+            sql2 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador join \n'
+            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+            sql3 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") denominador\n'
+            sql3 += 'on denominador."id" = numerador."id"'
+            # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
+            
+            #Edat
+            if self.dlg.Cmb_Calcul.currentIndex()==7: 
+                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
+                sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
+                sql2 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador\n'
+                csv = sql1 + where + sql2
+            else:
+                csv=self.Where_Indicadors(sql1,sql2,sql3,where)
+        
+        return csv
+
+    def Where_Indicadors(self,sql1,sql2,sql3,where):
+        
+
+        if self.dlg.Cmb_Calcul.currentIndex()==8:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=65)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))<=15)\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==9:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=85)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))<=65)\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==10:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19)\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==11:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))<=15)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==12:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=65)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==13:
+            sql_where1 = where +' AND ("HABCOPANA"<>\'108\')\n'
+            sql_where2 = where + '\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        elif self.dlg.Cmb_Calcul.currentIndex()==14:
+            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))<=14)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"=\'6\')\n'
+            csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
+        else:
+            csv="error"
+        return csv
+
     
     def getConnections(self):
         '''
