@@ -85,7 +85,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200722"
+Versio_modul="V_Q3.200727"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -894,12 +894,12 @@ class MapesDescriptiusPoblacio:
                 
                 #self.mostraSHPperPantalla("", "Parceles")
                 missatge=""
-                if self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14]:
-                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre d'EDAT proposat.\n"
-                if self.dlg.Cmb_Calcul.currentIndex() in [14]:
-                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de GENERE proposat.\n"
+                if (self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14] and not(self.dlg.Tots_els_habitants.isChecked())):
+                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre d'EDAT.\n"
+                if (self.dlg.Cmb_Calcul.currentIndex() in [14] and self.dlg.btoGENERE.isChecked()):
+                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de GENERE.\n"
                 if self.dlg.Cmb_Calcul.currentIndex() in [13]:
-                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de NACIONALITAT proposat."
+                    missatge+="Per calcular l'indicador "+self.dlg.Cmb_Calcul.currentText()+", no s'aplicarà el filtre de NACIONALITAT."
                 if missatge != "":
                     QMessageBox.information(None, "Informació del mòdul", missatge)
                 
