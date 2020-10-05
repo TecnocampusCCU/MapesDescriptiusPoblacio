@@ -85,7 +85,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.200727"
+Versio_modul="V_Q3.201005"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -1434,7 +1434,8 @@ class MapesDescriptiusPoblacio:
                 QApplication.processEvents()
                 Area=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 """Es crea un Shape a la carpeta temporal amb la data i hora actual"""
-                if (qgis.utils.Qgis.QGIS_VERSION_INT>=31000):
+                #print(qgis.utils.Qgis.QGIS_VERSION_INT)
+                if (qgis.utils.Qgis.QGIS_VERSION_INT>=31004):
                     save_options = QgsVectorFileWriter.SaveVectorOptions()
                     save_options.driverName = "ESRI Shapefile"
                     save_options.fileEncoding = "UTF-8"
