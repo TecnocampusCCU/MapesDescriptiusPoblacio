@@ -19,13 +19,13 @@
   <property name="minimumSize">
    <size>
     <width>475</width>
-    <height>450</height>
+    <height>505</height>
    </size>
   </property>
   <property name="maximumSize">
    <size>
     <width>475</width>
-    <height>1000</height>
+    <height>505</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -102,6 +102,16 @@
     <item>
      <property name="text">
       <string>DISTRICTES POSTALS</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>DISTRICTES INE</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>SECTORS</string>
      </property>
     </item>
    </widget>
@@ -1480,7 +1490,7 @@ color: rgb(0, 0, 0);</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>240</y>
+       <y>260</y>
        <width>211</width>
        <height>101</height>
       </rect>
@@ -1655,7 +1665,7 @@ color: rgb(0, 0, 0);</string>
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>60</y>
+       <y>80</y>
        <width>271</width>
        <height>180</height>
       </rect>
@@ -1892,7 +1902,7 @@ color: rgb(0, 0, 0);</string>
      <property name="geometry">
       <rect>
        <x>230</x>
-       <y>240</y>
+       <y>260</y>
        <width>221</width>
        <height>101</height>
       </rect>
@@ -2038,7 +2048,7 @@ color: rgb(0, 0, 0);</string>
       <set>Qt::AlignCenter</set>
      </property>
     </widget>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>310</x>
@@ -2294,6 +2304,19 @@ color: rgb(0, 0, 0);</string>
        </widget>
       </item>
      </layout>
+    </widget>
+    <widget class="QCheckBox" name="CB_Relatiu_total">
+     <property name="geometry">
+      <rect>
+       <x>20</x>
+       <y>60</y>
+       <width>101</width>
+       <height>17</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Relatiu al total.</string>
+     </property>
     </widget>
    </widget>
   </widget>
