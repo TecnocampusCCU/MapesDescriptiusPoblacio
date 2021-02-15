@@ -86,12 +86,14 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.201106"
+Versio_modul="V_Q3.210215"
 geometria=""
 connexioFeta=False
 QEstudis=None
 Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE","SECTORS"]
 Llista_Camps_Metodes=["ILLES","parcel","Seccions","Barris","DistrictesPostals","Districtes","Sectors"]
+TEMPORARY_PATH=""
+
 class MapesDescriptiusPoblacio:
     """QGIS Plugin Implementation."""
 
@@ -511,6 +513,7 @@ class MapesDescriptiusPoblacio:
         global micolorTag
         global Versio_modul
         global QEstudis
+        global TEMPORARY_PATH
         self.dlg.progressBar.setValue(0)
         self.dlg.progressBar.setVisible(False)
         self.dlg.progressBar.setMaximum(100)
@@ -577,7 +580,11 @@ class MapesDescriptiusPoblacio:
         self.dlg.GrupPestanyes.setTabEnabled(3,False)
         self.dlg.GrupPestanyes.setTabEnabled(4,False)
         self.SetTooltipIndicadors()
-    
+        if (os.name=='nt'):
+            TEMPORARY_PATH=os.environ['TMP']
+        else:
+            TEMPORARY_PATH=os.environ['TMPDIR']
+
     def SetTooltipIndicadors(self):
         self.dlg.Cmb_Calcul.setItemData(8,"(Pob >=65a / Pob <=15a)*100 per u.t.",QtCore.Qt.ToolTipRole)
         self.dlg.Cmb_Calcul.setItemData(9,"(Pob>=85a / Pob>=65a)*100 per u.t.",QtCore.Qt.ToolTipRole)
@@ -1315,6 +1322,7 @@ class MapesDescriptiusPoblacio:
         global port1
         global usuari1
         global micolorTag
+        global TEMPORARY_PATH
         uri = QgsDataSourceUri()
         try:
             #sql = "select * from \"ILLES\""
@@ -1358,12 +1366,12 @@ class MapesDescriptiusPoblacio:
                     save_options.driverName = "ESRI Shapefile"
                     save_options.fileEncoding = "UTF-8"
                     transform_context = QgsProject.instance().transformContext()
-                    error=QgsVectorFileWriter.writeAsVectorFormatV2(vlayer, os.environ['TMP']+"/Area_"+Area+".shp", transform_context,save_options)
+                    error=QgsVectorFileWriter.writeAsVectorFormatV2(vlayer, TEMPORARY_PATH+"/Area_"+Area+".shp", transform_context,save_options)
                 else:
-                    error=QgsVectorFileWriter.writeAsVectorFormat(vlayer, os.environ['TMP']+"/Area_"+Area+".shp", "utf-8", vlayer.crs(), "ESRI Shapefile")
+                    error=QgsVectorFileWriter.writeAsVectorFormat(vlayer, TEMPORARY_PATH+"/Area_"+Area+".shp", "utf-8", vlayer.crs(), "ESRI Shapefile")
                 vlayer=None
                 """Es carrega el Shape a l'entorn del QGIS"""
-                vlayer = QgsVectorLayer(os.environ['TMP']+"/Area_"+Area+".shp", titol3, "ogr")
+                vlayer = QgsVectorLayer(TEMPORARY_PATH+"/Area_"+Area+".shp", titol3, "ogr")
                 
                 symbols = vlayer.renderer().symbols(QgsRenderContext())
                 symbol=symbols[0]

@@ -1,0 +1,520 @@
+select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"
+from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where "HABFECNAC" >= to_date('29-6-2000','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by i."D_S_I", i  ."id") parcial 
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+group by i."D_S_I", i."id") total 
+on total."id" = parcial."id"
+
+--****************************************************************************************************************************************************
+--***** 			ILLES
+--****************************************************************************************************************************************************
+
+--Edat mitjana
+select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"
+from (select i.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where "HABFECNAC" >= to_date('29-6-1900','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by i."D_S_I", i  ."id") numerador 
+
+--Index envelliment
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index sobre_envelliment
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=85
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))<=65
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index recanvi
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia juvenil
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia senil
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index nens/ dones fertils
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))<=14
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"='6'
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+--Index poblacio estrangera
+select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+where "HABCOPANA"<>'108'
+group by i."D_S_I", i  ."id") numerador
+join
+(select i.*, count(*) as "Habitants" from "public"."Padro" p join "ILLES" i on p."D_S_I" = i."D_S_I"
+group by i."D_S_I", i."id") denominador
+on denominador."id" = numerador."id"
+
+
+--****************************************************************************************************************************************************
+--***** 			PARCELES
+--****************************************************************************************************************************************************
+
+--Edat mitjana
+select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Edat_mitjana"
+from 
+(select pa.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where "HABFECNAC" >= to_date('29-6-1900','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by pa."id",pa."UTM") numerador
+
+--Index envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index sobre envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=85
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))<=65
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index recanvi
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index dependencia juvenil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index dependencia senil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index nens/ dones fertils
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))<=14
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"='6'
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--Index Població estrangera
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select pa.*, count(*) as "Habitants" from "public"."Padro" p join "parcel" pa on p."REFCAD" = pa."UTM"
+where "HABCOPANA"<>'108'
+group by pa."id",pa."UTM") numerador
+join
+(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "parcel" pa on p."REFCAD" = pa."UTM"
+group by pa."id",pa."UTM") denominador 
+on denominador."id" = numerador."id"
+
+--****************************************************************************************************************************************************
+--***** 			SECCIONS
+--****************************************************************************************************************************************************
+
+--Edat mitjana
+select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABFECNAC" >= to_date('29-6-1900','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador
+
+--Index envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index sobre envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=85
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index recanvi
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia juvenil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia senil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index nens/ dones fertils
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=14
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"='6'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index Població estrangera
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABCOPANA"<>'108'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Seccions" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--****************************************************************************************************************************************************
+--***** 			BARRIS
+--****************************************************************************************************************************************************
+
+--Edat mitjana
+select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABFECNAC" >= to_date('29-6-1900','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+
+--Index envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index sobre envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=85
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index recanvi
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia juvenil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia senil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index nens/ dones fertils
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=14
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"='6'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index Població estrangera
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABCOPANA"<>'108'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "Barris" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--****************************************************************************************************************************************************
+--***** 			DISTRICTES POSTALS
+--****************************************************************************************************************************************************
+
+--Edat mitjana
+select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABFECNAC" >= to_date('29-6-1900','DD-MM-YYYY') AND "HABFECNAC" <= to_date('29-6-2020','DD-MM-YYYY')
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+
+--Index envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index sobre envelliment
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=85
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index recanvi
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia juvenil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=15
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index dependencia senil
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=65
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index nens/ dones fertils
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))<=14
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"='6'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
+
+--Index Població estrangera
+select numerador.*, denominador."Habitants" as Habitants_totals, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"
+from 
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+where "HABCOPANA"<>'108'
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") numerador
+join
+(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "DistrictesPostals" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"
+group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom")
+group by b."id") denominador
+on denominador."id" = numerador."id"
