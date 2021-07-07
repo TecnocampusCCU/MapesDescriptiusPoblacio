@@ -65,7 +65,7 @@ from .resources import *
 from .MapesDescriptiusPoblacio_dialog import MapesDescriptiusPoblacioDialog
 import os.path
 from math import sqrt
-from macpath import curdir
+#from macpath import curdir
 import csv
 
 """
@@ -86,7 +86,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.210423"
+Versio_modul="V_Q3.210707"
 geometria=""
 connexioFeta=False
 QEstudis=None
