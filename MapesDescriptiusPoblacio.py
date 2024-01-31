@@ -86,7 +86,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.210707"
+Versio_modul="V_Q3.240131"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -719,7 +719,8 @@ class MapesDescriptiusPoblacio:
             sql='select distinct("HABNIVINS"),"NINDESCRI" from "public"."Padro" order by 2;';
             self.dlg.LlistaPais.clear()
             self.dlg.LlistaPais2.clear()
-            sql2 = 'select distinct("HABCOMUNA"), "HABNOMUNA" FROM "public"."Padro" where "HABCOPANA" != 108 ORDER BY 2'
+            #sql2 = 'select distinct("HABCOMUNA"), "HABNOMUNA" FROM "public"."Padro" where "HABCOPANA" != 108 ORDER BY 2'
+            sql2 = 'SELECT distinct(A."HABCOMUNA"), B."CONNOMPAI" FROM "public"."Padro" A JOIN "public"."CONTINENTS" B ON A."HABCOMUNA" = B."CONCODPAI" order by 2;'
             self.dlg.LlistaZonesCont.clear()
             self.dlg.LlistaZonesCont2.clear()
             sql3 = 'select distinct("CONZONCON") FROM "public"."CONTINENTS" WHERE "CONZONCON" IS NOT NULL ORDER BY 1'
