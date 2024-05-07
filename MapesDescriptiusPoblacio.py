@@ -41,6 +41,7 @@ from qgis.core import QgsLineSymbol
 from qgis.core import QgsSymbolLayerRegistry
 from qgis.core import QgsRandomColorRamp
 from qgis.core import QgsRendererRangeLabelFormat
+from qgis.core import QgsCoordinateReferenceSystem
 from qgis.core import QgsProject
 from qgis.core import QgsLayerTreeLayer
 from qgis.core import QgsRenderContext
@@ -49,8 +50,10 @@ from qgis.core import QgsTextFormat
 from qgis.core import QgsTextBufferSettings
 from qgis.core import QgsVectorLayerSimpleLabeling
 from qgis.core import QgsProcessingFeedback, Qgis
+from qgis.core import QgsVectorLayerExporter
+from qgis.core import QgsWkbTypes
 from qgis.gui import QgsMessageBar,QgsTabWidget
-import processing
+import processing   # es pot importar utilitzant from qgis import processing, pero això només funciona en versions de QGIS posteriors a la 3.10 (com a mínim segons hem pogut comprovar)
 import psycopg2
 import unicodedata
 import datetime
@@ -86,13 +89,15 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240131"
+Versio_modul="V_Q3.240507"
 geometria=""
 connexioFeta=False
 QEstudis=None
 Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE","SECTORS"]
-Llista_Camps_Metodes=["ILLES","parcel","Seccions","Barris","DistrictesPostals","Districtes","Sectors"]
+#Llista_Camps_Metodes=["ILLES","parcel","Seccions","Barris","DistrictesPostals","Districtes","Sectors"]
+Llista_Camps_Metodes=["zone","parcel_temp","seccions","barris","districtes_postals","districtes","sectors"]
 TEMPORARY_PATH=""
+versio_db = ""
 
 class MapesDescriptiusPoblacio:
     """QGIS Plugin Implementation."""
@@ -131,6 +136,7 @@ class MapesDescriptiusPoblacio:
         self.dlg.Tots_els_habitants.toggled.connect(self.on_click_Tots_habitants)
         self.dlg.Cmb_Metode.currentIndexChanged.connect(self.on_Change_Metode)
         self.dlg.Cmb_Calcul.currentIndexChanged.connect(self.on_Change_Calcul)
+        self.dlg.comboLeyenda.currentIndexChanged.connect(self.on_Change_ComboLeyenda)
         self.dlg.lbl_EDAT.clicked.connect(self.on_click_lbl_EDAT)
         self.dlg.lbl_GENERE.clicked.connect(self.on_click_lbl_GENERE)
         self.dlg.lbl_ESTUDIS.clicked.connect(self.on_click_lbl_ESTUDIS)
@@ -157,6 +163,7 @@ class MapesDescriptiusPoblacio:
         self.dlg.RB_color.toggled.connect(self.on_checkRB_color)
         self.dlg.RB_degradat.toggled.connect(self.on_checkRB_degradat)
         self.dlg.Transparencia.valueChanged.connect(self.on_valuechange_Transparencia)
+        self.dlg.bt_ReloadLeyenda.clicked.connect(self.cerca_elements_Leyenda)
 
         # Declare instance attributes
         self.actions = []
@@ -579,6 +586,8 @@ class MapesDescriptiusPoblacio:
         self.dlg.GrupPestanyes.setTabEnabled(2,False)
         self.dlg.GrupPestanyes.setTabEnabled(3,False)
         self.dlg.GrupPestanyes.setTabEnabled(4,False)
+        self.dlg.tabWidget.setCurrentIndex(0)
+        self.dlg.comboLeyenda.clear()
         self.SetTooltipIndicadors()
         if (os.name=='nt'):
             TEMPORARY_PATH=os.environ['TMP']
@@ -633,8 +642,7 @@ class MapesDescriptiusPoblacio:
         self.dlg.color.setStyleSheet(estilo)
         self.dlg.color.setAutoFillBackground(True)
         pep=self.dlg.color.palette().color(1)
-        
-    
+   
     def on_Change_Metode(self):
         if self.dlg.Cmb_Metode.currentIndex()==1:
             self.dlg.min.setValue(3000.00)
@@ -697,6 +705,7 @@ class MapesDescriptiusPoblacio:
         global Llista_Metodes
         
         s = QSettings()
+        self.dlg.comboLeyenda.clear()
         select = 'Selecciona connexió'
         nom_conn=self.dlg.comboConnexions.currentText()
         if nom_conn != select:
@@ -716,15 +725,15 @@ class MapesDescriptiusPoblacio:
             
             #Sentencia SQL Estudis
             self.dlg.llistaEstudis.clear()
-            sql='select distinct("HABNIVINS"),"NINDESCRI" from "public"."Padro" order by 2;';
+            sql='select distinct on ("studies_code") "studies_code", "studies" from "public"."census" ORDER BY "studies_code", "studies";'
             self.dlg.LlistaPais.clear()
             self.dlg.LlistaPais2.clear()
-            #sql2 = 'select distinct("HABCOMUNA"), "HABNOMUNA" FROM "public"."Padro" where "HABCOPANA" != 108 ORDER BY 2'
-            sql2 = 'SELECT distinct(A."HABCOMUNA"), B."CONNOMPAI" FROM "public"."Padro" A JOIN "public"."CONTINENTS" B ON A."HABCOMUNA" = B."CONCODPAI" order by 2;'
+            #sql2 = 'select distinct("previous_place_code"), "previous_place_name" FROM "public"."census" where "origin_code" != 108 ORDER BY 2'
+            sql2 = 'SELECT distinct on (A."previous_place_code") A."previous_place_code", B."country_name" FROM "public"."census" A JOIN "public"."country" B ON A."previous_place_code" = B."country_code"::INTEGER ORDER BY A."previous_place_code", B."country_name";'
             self.dlg.LlistaZonesCont.clear()
             self.dlg.LlistaZonesCont2.clear()
-            sql3 = 'select distinct("CONZONCON") FROM "public"."CONTINENTS" WHERE "CONZONCON" IS NOT NULL ORDER BY 1'
-            sql4 = 'select description from pg_description join pg_class on pg_description.objoid = pg_class.oid join pg_namespace on pg_class.relnamespace = pg_namespace.oid where relname = \'Padro\' and nspname=\'public\''
+            sql3 = 'select distinct "continent_zone" FROM "public"."country" WHERE "continent_zone" IS NOT NULL ORDER BY "continent_zone"'
+            sql4 = 'select description from pg_description join pg_class on pg_description.objoid = pg_class.oid join pg_namespace on pg_class.relnamespace = pg_namespace.oid where relname = \'census\' and nspname=\'public\''
            
             
             #Connexio
@@ -739,6 +748,7 @@ class MapesDescriptiusPoblacio:
                 self.dlg.lblEstatConn.setText('Connectat')
                 cur = conn.cursor()
                 connexioFeta = True
+                self.detect_database_version(cur, conn)
                 cur.execute(sql)
                 rows = cur.fetchall()
                 for index,row in enumerate(rows,start=0):
@@ -765,10 +775,11 @@ class MapesDescriptiusPoblacio:
                 for index,row in enumerate(rows,start=1):
                     desc=row[0]
                     desc1=row[1]
-                    self.dlg.LlistaPais.addItem(desc1)
-                    self.dlg.LlistaPais.item(index).setToolTip(str(desc))
-                    self.dlg.LlistaPais2.addItem(desc1)
-                    self.dlg.LlistaPais2.item(index).setToolTip(str(desc))
+                    if desc != 108 or desc != '108':
+                        self.dlg.LlistaPais.addItem(desc1)
+                        self.dlg.LlistaPais.item(index).setToolTip(str(desc))
+                        self.dlg.LlistaPais2.addItem(desc1)
+                        self.dlg.LlistaPais2.item(index).setToolTip(str(desc))
                 
             except Exception as ex:
                 msg_error="Error en la sentencia SQL següent:\n"+sql2
@@ -815,6 +826,7 @@ class MapesDescriptiusPoblacio:
             Metodes,tooltips=self.Comprova_Metodes(Llista_Metodes,Llista_Camps_Metodes,cur)
             self.populateComboBox_tooltip(self.dlg.Cmb_Metode ,Metodes,tooltips,'Selecciona Mètode',True)
             #self.addTooltip_toCombo(tooltips,self.dlg.Cmb_Metode )
+            self.cerca_elements_Leyenda()
 
         else:
             self.dlg.lblEstatConn.setText('No connectat')
@@ -867,6 +879,57 @@ class MapesDescriptiusPoblacio:
                     errors.append("L'edat mínima no pot ser més gran que la màxima.")
         return errors
     
+    def on_Change_ComboLeyenda(self):
+        L_capa = self.dlg.comboLeyenda.currentText()
+
+        if L_capa == '' or L_capa == 'Selecciona capa':
+            return
+        
+        errors = self.controlEntitatLeyenda(L_capa) # retorna una llista amb aquells camps que no hi siguin
+
+        if not 'id' in errors:
+            alg_params = {
+                'INPUT': L_capa,
+                'FIELD_NAME': 'id',
+                'FIELD_TYPE': 1,
+                'FORMULA': '@id',
+                'OUTPUT': 'memory:'
+            }
+            L_capa = processing.run("qgis:fieldcalculator", alg_params)['OUTPUT']
+        return True
+    
+    def cerca_elements_Leyenda(self):
+        if self.dlg.comboConnexions.currentText() != 'Selecciona connexió':
+            try:
+                aux = []
+                layers = QgsProject.instance().mapLayers().values()
+                for layer in layers:
+                    if layer.geometryType() == QgsWkbTypes.PolygonGeometry:
+                        aux.append(layer.name())
+
+                self.populateComboBox(self.dlg.comboLeyenda, aux, 'Selecciona una entitat', True)
+            except Exception as ex:
+                self.dlg.setEnabled(True)
+                missatge="Error al afegir els elements de la llegenda"
+                print(missatge)
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", missatge)
+                return
+
+    def controlEntitatLeyenda(self, entitat):
+        list = []
+
+        layers = QgsProject.instance().mapLayers().values()
+        if layers != None:
+            for layer in layers:
+                if layer.sourceName() == entitat:
+                    for each in layer.fields():
+                        if each.name() == 'id':
+                            list.append('id')
+        return list
+
     def on_click_crearTaula(self):
         '''
         Funcio principal:
@@ -888,15 +951,35 @@ class MapesDescriptiusPoblacio:
         global conn
         global Llista_Camps_Metodes
         global Llista_Metodes
+        global Fitxer
         
         s = QSettings()
+
+        Fitxer=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+
+        uri = QgsDataSourceUri()
+        try:
+            uri.setConnection(host1, port1, nomBD1, usuari1, contra1)
+        except Exception as ex:
+            self.dlg.setEnabled(True)
+            QMessageBox.information(None, "Error", "Error al connectar amb la base de dades")
+            return
         
+        consoleWidget = iface.mainWindow().findChild(QDockWidget, 'PythonConsole')
+        if consoleWidget is None:
+            iface.actionShowPythonDialog().trigger()
+            QApplication.processEvents()
+            consoleWidget = iface.mainWindow().findChild(QDockWidget, 'PythonConsole')
+            consoleWidget.console.shellOut.clearConsole()
+            consoleWidget.setVisible(False)
+
         self.dlg.setEnabled(False)
         '''Control d'errors'''
         self.dlg.progressBar.setValue(0)
         self.dlg.progressBar.setVisible(True)
         llistaErrors = self.controlErrorInput()
         self.dlg.progressBar.setValue(10)
+
         if len(llistaErrors) > 0:
             llista = "Llista d'errors:\n\n"
             for i in range (0,len(llistaErrors)):
@@ -914,408 +997,579 @@ class MapesDescriptiusPoblacio:
             print ("No hi ha cap sortida seleccionada.\nSeleccioneu una sortida.")
             self.dlg.setEnabled(True)
             self.dlg.progressBar.setVisible(False)
-        elif self.dlg.Cmb_Metode.currentIndex()==0:
-            QMessageBox.information(None, "Error 3", "No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
-            print ("No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
-            self.dlg.setEnabled(True)
-            self.dlg.progressBar.setVisible(False)
+        elif self.dlg.tabWidget.currentIndex() == 0:
+            if self.dlg.Cmb_Metode.currentIndex() == 0:
+                QMessageBox.information(None, "Error 3.1", "No hi ha cap mètode de treball seleccionat (base dades).\nSeleccioneu un mètode.")
+                print ("No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
+        elif self.dlg.tabWidget.currentIndex() == 1:
+            if self.dlg.comboLeyenda.currentIndex() == 0:
+                QMessageBox.information(None, "Error 3.2", "No hi ha cap mètode de treball seleccionat (llegenda).\nSeleccioneu un mètode.")
+                print ("No hi ha cap mètode de treball seleccionat.\nSeleccioneu un mètode.")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
         else:
-            nom_conn=self.dlg.comboConnexions.currentText()
-            select = 'Selecciona connexió'
-            self.dlg.progressBar.setValue(20)
-            if (nom_conn != select):
-                #fileName = QtGui.QFileDialog.getSaveFileName(self.dlg, "Guardar com...", "c:/", "CSV files (*.csv)")
-                ##startingDir = cmds.workspace(q=True, rootDirectory=True)
-                '''Eleccio del cami de destí dels arxius'''
-                #fileName= QtGui.QFileDialog.getExistingDirectory(self.dlg,"Open a folder","c:/",QtGui.QFileDialog.ShowDirsOnly)
-                #if fileName != '':
-                                       
-                s.beginGroup("PostgreSQL/connections/"+nom_conn)
-                currentKeys = s.childKeys()
-                '''Connexio'''
-                self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ffff7f')
-                self.dlg.lblEstatConn.setText('Connectant...')
-                self.dlg.lblEstatConn.setAutoFillBackground(True)
+            if self.dlg.tabWidget.currentIndex() != 0:
+                if not self.on_Change_ComboLeyenda():
+                    self.dlg.setEnabled(True)
+                    return
+            
+        arxiuLlegit = False
+        QApplication.processEvents()
+
+
+        nom_conn=self.dlg.comboConnexions.currentText()
+        select = 'Selecciona connexió'
+        self.dlg.progressBar.setValue(20)
+
+        #if self.dlg.tabWidget.currentIndex() == 0:
+
+        if (nom_conn != select):
+            #fileName = QtGui.QFileDialog.getSaveFileName(self.dlg, "Guardar com...", "c:/", "CSV files (*.csv)")
+            ##startingDir = cmds.workspace(q=True, rootDirectory=True)
+            '''Eleccio del cami de destí dels arxius'''
+            #fileName= QtGui.QFileDialog.getExistingDirectory(self.dlg,"Open a folder","c:/",QtGui.QFileDialog.ShowDirsOnly)
+            #if fileName != '':
+                                
+            s.beginGroup("PostgreSQL/connections/"+nom_conn)
+            currentKeys = s.childKeys()
+            '''Connexio'''
+            self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ffff7f')
+            self.dlg.lblEstatConn.setText('Connectant...')
+            self.dlg.lblEstatConn.setAutoFillBackground(True)
+            QApplication.processEvents()
+            cur = conn.cursor()
+
+            self.detect_database_version(cur, conn)
+            
+            #Sentencia SQL Estudis
+            where = 'where '      
+            
+            #self.mostraSHPperPantalla("", "Parceles")
+            missatge=""
+            if (self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14] and not(self.dlg.Tots_els_habitants.isChecked())):
+                missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre d'EDAT.\n"
+            if (self.dlg.Cmb_Calcul.currentIndex() in [14] and self.dlg.btoGENERE.isChecked()):
+                missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de GENERE.\n"
+            if self.dlg.Cmb_Calcul.currentIndex() in [13]:
+                missatge+="Per calcular l'indicador "+self.dlg.Cmb_Calcul.currentText()+", no s'aplicarà el filtre de NACIONALITAT."
+            if missatge != "":
+                QMessageBox.information(None, "Informació del mòdul", missatge)
+            
+            try:
+                self.dlg.progressBar.setValue(25)
+                self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: rgb(255, 170, 142)')
+                self.dlg.lblEstatConn.setText('Connectat i processant')
                 QApplication.processEvents()
-                cur = conn.cursor()
-                
-                #Sentencia SQL Estudis
-                where = 'where '      
-                
-                #self.mostraSHPperPantalla("", "Parceles")
-                missatge=""
-                if (self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14] and not(self.dlg.Tots_els_habitants.isChecked())):
-                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre d'EDAT.\n"
-                if (self.dlg.Cmb_Calcul.currentIndex() in [14] and self.dlg.btoGENERE.isChecked()):
-                    missatge+="L'indicador "+self.dlg.Cmb_Calcul.currentText()+" es calcularà amb tots els habitants, no s'aplicarà el filtre de GENERE.\n"
-                if self.dlg.Cmb_Calcul.currentIndex() in [13]:
-                    missatge+="Per calcular l'indicador "+self.dlg.Cmb_Calcul.currentText()+", no s'aplicarà el filtre de NACIONALITAT."
-                if missatge != "":
-                    QMessageBox.information(None, "Informació del mòdul", missatge)
-                
-                try:
-                    self.dlg.progressBar.setValue(25)
-                    self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: rgb(255, 170, 142)')
-                    self.dlg.lblEstatConn.setText('Connectat i processant')
-                    QApplication.processEvents()
-                    
-                    '''Composicio del where'''
-                    '''Filtre d'edat'''
-                    if self.dlg.btoEDAT.isChecked():
-                        self.dlg.progressBar.setValue(30)
-                        max = 0
-                        min = 0
-                        try:
-                            if self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14]:
-                                self.dlg.Tots_els_habitants.setChecked(True)
-                            if self.dlg.Tots_els_habitants.isChecked():
-                                max=200
-                                min=0
-                            else:
-                                max = int(self.dlg.txtEdatMax.text())
-                                min = int(self.dlg.txtEdatMin.text())
-                            
-                        except Exception as ex:
-                            self.dlg.GrupPestanyes.setCurrentIndex(0)
-                            self.tornaConnectat()
-                            print("Error llegir les edats")
-                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                            message = template.format(type(ex).__name__, ex.args)
-                            print (message)
-                            QMessageBox.information(None, "Error", "Error al llegir les edats.\nEls camps edat mínima i edat màxima han d'estar plens")
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
-                        
-                        if ((min > max) or (min < 0) or (max <= 0)):
-                            QMessageBox.information(None, "Error", "Error:\n minim > màxim o número/s negatiu/s")
-                            self.dlg.GrupPestanyes.setCurrentIndex(0)
-                            self.tornaConnectat()
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
-                        hora = self.dlg.data.date()
-                        horaAct = QtCore.QDateTime.currentDateTime()
-                        diaActual = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year())
-                        
-                        if self.dlg.btoEdatRestrictiu.isChecked():
-                            if self.dlg.btoData.isChecked():
-                                diaTriatMin = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - min)
-                                diaTriatMax = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - max)
-                                where += '"HABFECNAC" >= to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "HABFECNAC" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
-                                
-                            elif self.dlg.btoDataAvui.isChecked():
-                                diaTriatMin = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - min)
-                                diaTriatMax = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - max)
-                                where += '"HABFECNAC" >= to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "HABFECNAC" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
-                        elif self.dlg.btoEdatAmpli.isChecked():
-                            if self.dlg.btoData.isChecked():
-                                diaTriatMin = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - min)
-                                diaTriatMax = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - (max+1))
-                                where += '"HABFECNAC" > to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "HABFECNAC" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
-                                
-                            elif self.dlg.btoDataAvui.isChecked():
-                                diaTriatMin = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - min)
-                                diaTriatMax = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - (max+1))
-                                where += '"HABFECNAC" > to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "HABFECNAC" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
-                    
-                    '''Filtre de genere'''    
-                    if self.dlg.Cmb_Calcul.currentIndex() in [14]:
-                        self.dlg.btoGENERE.setChecked(False)                        
-                    if self.dlg.btoGENERE.isChecked():
-                        self.dlg.progressBar.setValue(35)
-                        if self.dlg.btoEDAT.isChecked():
-                            where += ' AND '
-                        if self.dlg.btoHome.isChecked():
-                            where += '"HABELSEXO" = 1'
-                        elif self.dlg.btoDona.isChecked():
-                            where += '"HABELSEXO" = 6'
-                        else:
-                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap gènere seleccionat.")
-                            self.dlg.GrupPestanyes.setCurrentIndex(1)
-                            self.tornaConnectat()
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
 
-                    '''Filtre d'estudis'''
-                    if self.dlg.btoESTUDIS.isChecked():
-                        self.dlg.progressBar.setValue(40)
-                        if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked():
-                           where += ' AND '
-                        llistaEST = self.dlg.llistaEstudis.selectedItems()
-                        if len(llistaEST)>0:
-                            where += '('
-                            for item in llistaEST:
-                                where += '"HABNIVINS" = '+ item.toolTip()+ ' OR '
-                            where=where[0:len(where)-4]
-                            where += ')'
-                        else:
-                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap estudi seleccionat.")
-                            self.dlg.GrupPestanyes.setCurrentIndex(2)
-                            self.tornaConnectat()
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
-                    
-                    '''Filtre d'origen'''
-                    if self.dlg.btoORIGEN.isChecked():
-                        self.dlg.progressBar.setValue(45)
-                        if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked() or self.dlg.btoESTUDIS.isChecked():
-                           where += ' AND '
-                        if self.dlg.btoPais.isChecked():
-                            llistaORG = self.dlg.LlistaPais.selectedItems()
-                            if len(llistaORG)>0:
-                                where += '('
-                                for item in llistaORG:
-                                    if item.toolTip() != '108':
-                                        where += '"HABCOMUNA" = '+ item.toolTip() + ' AND "HABCOPANA" != 108'+ ' OR '
-                                    else:
-                                        where += '"HABCOPANA" = 108'+ ' OR '
-                                where=where[0:len(where)-4]
-                                where += ')'
-                            else:
-                               QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
-                               self.dlg.GrupPestanyes.setCurrentIndex(3)
-                               self.tornaConnectat()
-                               self.dlg.setEnabled(True)
-                               self.dlg.progressBar.setVisible(False)
-                               return 
-                        elif self.dlg.btoZones.isChecked():                                 
-                            llistaORG = self.dlg.LlistaZonesCont.selectedItems()
-                            if len(llistaORG)>0:
-                                zonaCont = 'WHERE '
-                                for item in llistaORG:
-                                    zonaCont += '"CONZONCON" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
-                                zonaCont=zonaCont[0:len(zonaCont)-4]
-                                SQL_Pro = 'SELECT "CONCODPAI" from "public"."CONTINENTS" '  + zonaCont  + ' ORDER BY 1'
-                                try:  
-                                    cur.execute(SQL_Pro)
-                                    rows = cur.fetchall()
-                                except Exception as ex:
-                                    self.tornaConnectat()
-                                    print("Error SELECT concopdai")
-                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                                    message = template.format(type(ex).__name__, ex.args)
-                                    print (message)
-                                    QMessageBox.information(None, "Error", "Error SELECT concodpai")
-                                    self.dlg.setEnabled(True)
-                                    self.dlg.progressBar.setVisible(False)
-                                    return
-                                where += '('
-                                for index,row in enumerate(rows,start=0):
-                                    if index == 0:
-                                        if row[0] != 108:
-                                            where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
-                                        else:
-                                            where += '("HABCOPANA" = 108)'
-                                    else:
-                                        if row[0] != 108:
-                                            where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
-                                        else:
-                                            where += ' or ("HABCOPANA" = 108)'
-                                where += ')'
-                            else:
-                               QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
-                               self.dlg.GrupPestanyes.setCurrentIndex(3)
-                               self.tornaConnectat()
-                               self.dlg.setEnabled(True)
-                               self.dlg.progressBar.setVisible(False)
-                               return
-                        elif self.dlg.btoEuropa27.isChecked():
-                            SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
-                            try:
-                                cur.execute(SQL_Pro)
-                                rows = cur.fetchall()
-                            except Exception as ex:
-                                self.tornaConnectat()
-                                print("Error SELECT concopdai")
-                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                                message = template.format(type(ex).__name__, ex.args)
-                                print (message)
-                                QMessageBox.information(None, "Error", "Error SELECT concodpai")
-                                self.dlg.setEnabled(True)
-                                self.dlg.progressBar.setVisible(False)
-                                return
-                            where += '('
-                            for index,row in enumerate(rows,start=0):
-                                if index == 0:
-                                    if row[0] != 108:
-                                        where += '("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
-                                    else:
-                                        where += '("HABCOPANA" = 108)'
-                                else:
-                                    if row[0] != 108:
-                                        where += ' or ("HABCOMUNA" = ' + str(row[0]) + ' and "HABCOPANA" != 108)'
-                                    else:
-                                        where += ' or ("HABCOPANA" = 108)'
-                            where += ')'
-                    
-                    '''Filtre de nacionalitat'''
-                    if self.dlg.Cmb_Calcul.currentIndex() in [13]:
-                        self.dlg.btoNACIONALITAT.setChecked(False)                        
-                    if self.dlg.btoNACIONALITAT.isChecked():
-                        self.dlg.progressBar.setValue(50)
-                        
-                        if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked() or self.dlg.btoESTUDIS.isChecked() or self.dlg.btoORIGEN.isChecked():
-                           where += ' AND '
-                        if self.dlg.btoPais_3.isChecked():
-                            llistaORG = self.dlg.LlistaPais2.selectedItems()
-                            if len(llistaORG)>0:
-                                where += '('
-                                for item in llistaORG:
-                                    where += '"HABNACION" = '+ item.toolTip() + ' OR '
-                                where=where[0:len(where)-4]
-                                where += ')'
-                                
-                            else:
-                               QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
-                               self.dlg.GrupPestanyes.setCurrentIndex(4)
-                               self.tornaConnectat()
-                               self.dlg.setEnabled(True)
-                               self.dlg.progressBar.setVisible(False)
-                               return 
-                        elif self.dlg.btoZones_3.isChecked():
-                            llistaORG = self.dlg.LlistaZonesCont2.selectedItems()
-                            if len(llistaORG)>0:
-                                zonaCont = 'WHERE '
-                                for item in llistaORG:
-                                    zonaCont += '"CONZONCON" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
-
-                                zonaCont=zonaCont[0:len(zonaCont)-4]
-                                SQL_Pro = 'SELECT "CONCODPAI" from "public"."CONTINENTS" '  + zonaCont  + ' ORDER BY 1' 
+                # Si estem afagant una capa de la llegenda...
+                if self.dlg.tabWidget.currentIndex() == 1:
+                    layers = QgsProject.instance().mapLayers().values()
+                    if layers != None:
+                        for layer in layers:
+                            if layer.name() == self.dlg.comboLeyenda.currentText():
                                 try:
-                                    cur.execute(SQL_Pro)
-                                    rows = cur.fetchall()
+                                    sql_SRID = "SELECT Find_SRID('public', 'zone', 'geom')"
+                                    cur.execute(sql_SRID)
                                 except Exception as ex:
-                                    self.tornaConnectat()
-                                    print("Error SELECT concopdai")
+                                    self.dlg.setEnabled(True)
+                                    print("Error SELECT SRID zone")
                                     template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
                                     print (message)
-                                    QMessageBox.information(None, "Error", "Error SELECT concodpai")
-                                    self.dlg.setEnabled(True)
-                                    self.dlg.progressBar.setVisible(False)
+                                    QMessageBox.information(None, "Error", "Error SELECT SRID zone")
+                                    conn.rollback()
                                     return
-                                where += '('
-                                for index,row in enumerate(rows,start=0):
-                                    if index == 0:
-                                        where += '"HABNACION" = ' + str(row[0])
-                                    else:
-                                        where += ' or "HABNACION" = ' + str(row[0])
-                                where += ')'
-                            else:
-                               QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
-                               self.dlg.GrupPestanyes.setCurrentIndex(4)
-                               self.tornaConnectat()
-                               self.dlg.setEnabled(True)
-                               self.dlg.progressBar.setVisible(False)
-                               return
-                        elif self.dlg.btoEuropa27_3.isChecked():
-                            SQL_Pro = 'select "CONCODPAI" from "public"."CONTINENTS"  WHERE  "UE27" = 1 ORDER BY 1'
-                            try:
-                                cur.execute(SQL_Pro)
-                                rows = cur.fetchall()
-                            except Exception as ex:
-                                self.tornaConnectat()
-                                print("Error SELECT concopdai")
-                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                                message = template.format(type(ex).__name__, ex.args)
-                                print (message)
-                                QMessageBox.information(None, "Error", "Error SELECT concodpai")
-                                self.dlg.setEnabled(True)
-                                self.dlg.progressBar.setVisible(False)
-                                return
-                            where += '('
-                            for index,row in enumerate(rows,start=0):
-                                if index == 0:
-                                    where += '"HABNACION" = ' + str(row[0])
-                                else:
-                                    where += ' or "HABNACION" = ' + str(row[0])
-                            where += ')'
-                    
-                    where += "\n"
-                    self.dlg.progressBar.setValue(55)
-                    '''Execució de la sentencia SQL'''
-                    nom_entitat=self.dlg.Cmb_Metode.itemData(self.dlg.Cmb_Metode.currentIndex(),QtCore.Qt.ToolTipRole)
-                    Metode=self.dlg.Cmb_Metode.currentText()
-                    if self.Indicadors_selected():
-                        csv=self.Retorna_Indicador(where,nom_entitat,Metode)
-                        if csv=="error":
-                            self.tornaConnectat()
-                            template = "No hi ha cap Indicador sel·lecionat."
-                            #message = template.format(type(ex).__name__, ex.args)
-                            #print (message)
-                            QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
-                            self.dlg.setEnabled(True)
-                            self.dlg.progressBar.setVisible(False)
-                            return
+                                auxlist = cur.fetchall()
+                                Valor_SRID = auxlist[0][0]
+                                # TODO: Definir mètode per comprovar si la capa és vàlida
+                                #layer = self.comprobarValidez(layer, Valor_SRID)
+                                error = QgsVectorLayerExporter.exportLayer(layer, 'table="public"."layerexportat'+Fitxer+'" (geom) '+uri.connectionInfo(), "postgres", layer.crs(), False)
+                                if error[0] != 0:
+                                    iface.messageBar().pushMessage(u'Error', error[1])
+                                
+                                try:
+                                    sql_SRID = f"SELECT Find_SRID('public', 'layerexportat{Fitxer}', 'geom')"
+                                    cur.execute(sql_SRID)
+                                except Exception as ex:
+                                    self.dlg.setEnabled(True)
+                                    print("Error SELECT SRID layerexportat")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error SELECT SRID layerexportat")
+                                    conn.rollback()
+                                    return
+                                auxlist = cur.fetchall()
+                                Valor_SRID = auxlist[0][0]
+                                alter = 'ALTER TABLE "layerexportat'+Fitxer+'" ALTER COLUMN geom TYPE geometry(Polygon, '+str(Valor_SRID)+') USING ST_GeometryN(geom, 1);'
+
+                                try:
+                                    cur.execute(alter)
+                                    conn.commit()
+                                except Exception as ex:
+                                    self.dlg.setEnabled(True)
+                                    print("Error ALTER TABLE layerexportat")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error ALTER TABLE layerexportat")
+                                    conn.rollback()
+                                    return
+                                
+                                select = 'SELECT COUNT(*) FROM "layerexportat'+Fitxer+'";'
+
+                                try:
+                                    cur.execute(select)
+                                    auxlist = cur.fetchall()
+                                    if auxlist[0][0] == 0:
+                                        self.dlg.setEnabled(True)
+                                        ErrorMessage = "La entitat escollida és buida."
+                                        QMessageBox.information(None, "Error", ErrorMessage)
+                                        conn.rollback()
+                                        return
+                                except Exception as ex:
+                                    self.dlg.setEnabled(True)
+                                    print("Error SELECT COUNT layerexportat")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error SELECT COUNT layerexportat")
+                                    conn.rollback()
+                                    return
                     else:
-
-                        if self.dlg.Cmb_Metode.currentText()=='ILLES':
-                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                            sql1 += 'from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "'+nom_entitat+'" i on p."D_S_I" = i."D_S_I"\n'
-                            sql2 = 'group by i."D_S_I", i."id") parcial join\n'
-                            sql2 += '(select i.*, count(*) as "Habitants" from "public"."Padro" p join "'+nom_entitat+'" i on p."D_S_I" = i."D_S_I"\n'
-                            sql2 += 'group by i."D_S_I", i."id") total on total."id" = parcial."id"'
-                            sql3 = ''
-                        
-                        elif self.dlg.Cmb_Metode.currentText()=='PARCELES':
-                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                            sql1 += 'from (select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "'+nom_entitat+'" pa on p."REFCAD" = pa."UTM"\n'
-                            sql2 = 'group by pa."id",pa."UTM") parcial join\n'
-                            sql2 += '(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "'+nom_entitat+'" pa on p."REFCAD" = pa."UTM"\n'
-                            sql2 += 'group by pa."id",pa."UTM")total on total."id" = parcial."id"'
-                            sql3 = ''
-                        
-                        else:
-                            sql1 = 'select parcial.*, total."Habitants" as "hab_total" ,round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) as "hab_rel", round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) as "densitat_9"\n'
-                            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants" from "'+nom_entitat+'" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                            sql2 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                            sql2 += 'group by b."id") parcial join\n'
-                            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants" from "'+nom_entitat+'" b join  (select p."CarrerNumBis" , count(*) as "Habitants", d."geom" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                            sql3 = 'group by p."CarrerNumBis", d."geom") tot on ST_Intersects(tot."geom", b."geom")\n'
-                            sql3 += 'group by b."id") total on total."id" = parcial."id"'
-
-                        csv = sql1 + where + sql2 + sql3
-                    self.dlg.progressBar.setValue(65)
-                    try:
-                        self.mostraSHPperPantalla(csv, Metode)
-                        self.dlg.progressBar.setValue(90)
-                        QApplication.processEvents()
-                    except Exception as ex:
-                        self.tornaConnectat()
-                        print("Error modificar la TaulaResum 2")
-                        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-                        message = template.format(type(ex).__name__, ex.args)
-                        print (message)
-                        QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
+                        QMessageBox.information(None, "Error", "No hi ha cap capa a la llegenda.")
                         self.dlg.setEnabled(True)
                         self.dlg.progressBar.setVisible(False)
                         return
+                
+                '''Composicio del where'''
+                '''Filtre d'edat'''
+                if self.dlg.btoEDAT.isChecked():
+                    self.dlg.progressBar.setValue(30)
+                    max = 0
+                    min = 0
+                    try:
+                        if self.dlg.Cmb_Calcul.currentIndex() in [8,9,10,11,12,14]:
+                            self.dlg.Tots_els_habitants.setChecked(True)
+                        if self.dlg.Tots_els_habitants.isChecked():
+                            max=200
+                            min=0
+                        else:
+                            max = int(self.dlg.txtEdatMax.text())
+                            min = int(self.dlg.txtEdatMin.text())
+                        
+                    except Exception as ex:
+                        self.dlg.GrupPestanyes.setCurrentIndex(0)
+                        self.tornaConnectat()
+                        print("Error llegir les edats")
+                        template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                        message = template.format(type(ex).__name__, ex.args)
+                        print (message)
+                        QMessageBox.information(None, "Error", "Error al llegir les edats.\nEls camps edat mínima i edat màxima han d'estar plens")
+                        self.dlg.setEnabled(True)
+                        self.dlg.progressBar.setVisible(False)
+                        return
+                    
+                    if ((min > max) or (min < 0) or (max <= 0)):
+                        QMessageBox.information(None, "Error", "Error:\n minim > màxim o número/s negatiu/s")
+                        self.dlg.GrupPestanyes.setCurrentIndex(0)
+                        self.tornaConnectat()
+                        self.dlg.setEnabled(True)
+                        self.dlg.progressBar.setVisible(False)
+                        return
+                    hora = self.dlg.data.date()
+                    horaAct = QtCore.QDateTime.currentDateTime()
+                    diaActual = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year())
+                    
+                    if self.dlg.btoEdatRestrictiu.isChecked():
+                        if self.dlg.btoData.isChecked():
+                            diaTriatMin = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - min)
+                            diaTriatMax = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - max)
+                            where += '"date_of_birth" >= to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "date_of_birth" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
                             
+                        elif self.dlg.btoDataAvui.isChecked():
+                            diaTriatMin = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - min)
+                            diaTriatMax = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - max)
+                            where += '"date_of_birth" >= to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "date_of_birth" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
+                    elif self.dlg.btoEdatAmpli.isChecked():
+                        if self.dlg.btoData.isChecked():
+                            diaTriatMin = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - min)
+                            diaTriatMax = str(hora.day()) + "-" + str(hora.month()) + "-" + str(hora.year() - (max+1))
+                            where += '"date_of_birth" > to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "date_of_birth" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
+                            
+                        elif self.dlg.btoDataAvui.isChecked():
+                            diaTriatMin = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - min)
+                            diaTriatMax = str(horaAct.date().day()) + "-" + str(horaAct.date().month()) + "-" + str(horaAct.date().year() - (max+1))
+                            where += '"date_of_birth" > to_date(' + "'" + diaTriatMax + "'," + "'DD-MM-YYYY')" + ' AND "date_of_birth" <= to_date(' + "'" + diaTriatMin + "'," + "'DD-MM-YYYY')"
+                
+                '''Filtre de genere'''    
+                if self.dlg.Cmb_Calcul.currentIndex() in [14]:
+                    self.dlg.btoGENERE.setChecked(False)                        
+                if self.dlg.btoGENERE.isChecked():
+                    self.dlg.progressBar.setValue(35)
+                    if self.dlg.btoEDAT.isChecked():
+                        where += ' AND '
+                    if self.dlg.btoHome.isChecked():
+                        where += '"sex" = 1'
+                    elif self.dlg.btoDona.isChecked():
+                        where += '"sex" = 6'
+                    else:
+                        QMessageBox.information(None, "Error", "Error:\nNo hi ha cap gènere seleccionat.")
+                        self.dlg.GrupPestanyes.setCurrentIndex(1)
+                        self.tornaConnectat()
+                        self.dlg.setEnabled(True)
+                        self.dlg.progressBar.setVisible(False)
+                        return
+
+                '''Filtre d'estudis'''
+                if self.dlg.btoESTUDIS.isChecked():
+                    self.dlg.progressBar.setValue(40)
+                    if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked():
+                        where += ' AND '
+                    llistaEST = self.dlg.llistaEstudis.selectedItems()
+                    if len(llistaEST)>0:
+                        where += '('
+                        for item in llistaEST:
+                            where += '"studies_code" = '+ item.toolTip()+ ' OR '
+                        where=where[0:len(where)-4]
+                        where += ')'
+                    else:
+                        QMessageBox.information(None, "Error", "Error:\nNo hi ha cap estudi seleccionat.")
+                        self.dlg.GrupPestanyes.setCurrentIndex(2)
+                        self.tornaConnectat()
+                        self.dlg.setEnabled(True)
+                        self.dlg.progressBar.setVisible(False)
+                        return
+                
+                '''Filtre d'origen'''
+                if self.dlg.btoORIGEN.isChecked():
+                    self.dlg.progressBar.setValue(45)
+                    if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked() or self.dlg.btoESTUDIS.isChecked():
+                        where += ' AND '
+                    if self.dlg.btoPais.isChecked():
+                        llistaORG = self.dlg.LlistaPais.selectedItems()
+                        if len(llistaORG)>0:
+                            where += '('
+                            for item in llistaORG:
+                                if item.toolTip() != '108':
+                                    where += '"previous_place_code" = '+ item.toolTip() + ' AND "origin_code" != 108'+ ' OR '
+                                else:
+                                    where += '"origin_code" = 108'+ ' OR '
+                            where=where[0:len(where)-4]
+                            where += ')'
+                        else:
+                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
+                            self.dlg.GrupPestanyes.setCurrentIndex(3)
+                            self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return 
+                    elif self.dlg.btoZones.isChecked():                                 
+                        llistaORG = self.dlg.LlistaZonesCont.selectedItems()
+                        if len(llistaORG)>0:
+                            zonaCont = 'WHERE '
+                            for item in llistaORG:
+                                zonaCont += '"continent_zone" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
+                            zonaCont=zonaCont[0:len(zonaCont)-4]
+                            SQL_Pro = 'SELECT "country_code" from "public"."country" '  + zonaCont  + ' ORDER BY 1'
+                            try:  
+                                cur.execute(SQL_Pro)
+                                rows = cur.fetchall()
+                            except Exception as ex:
+                                self.tornaConnectat()
+                                print("Error SELECT concopdai")
+                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                message = template.format(type(ex).__name__, ex.args)
+                                print (message)
+                                QMessageBox.information(None, "Error", "Error SELECT country_code")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                            where += '('
+                            for index,row in enumerate(rows,start=0):
+                                if index == 0:
+                                    if row[0] != 108:
+                                        where += '("previous_place_code" = ' + str(row[0]) + ' and "origin_code" != 108)'
+                                    else:
+                                        where += '("origin_code" = 108)'
+                                else:
+                                    if row[0] != 108:
+                                        where += ' or ("previous_place_code" = ' + str(row[0]) + ' and "origin_code" != 108)'
+                                    else:
+                                        where += ' or ("origin_code" = 108)'
+                            where += ')'
+                        else:
+                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
+                            self.dlg.GrupPestanyes.setCurrentIndex(3)
+                            self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return
+                    elif self.dlg.btoEuropa27.isChecked():
+                        SQL_Pro = 'select "country_code" from "public"."country"  WHERE  "ue27" = 1 ORDER BY 1'
+                        try:
+                            cur.execute(SQL_Pro)
+                            rows = cur.fetchall()
+                        except Exception as ex:
+                            self.tornaConnectat()
+                            print("Error SELECT concopdai")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
+                            QMessageBox.information(None, "Error", "Error SELECT country_code")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return
+                        where += '('
+                        for index,row in enumerate(rows,start=0):
+                            if index == 0:
+                                if row[0] != 108:
+                                    where += '("previous_place_code" = ' + str(row[0]) + ' and "origin_code" != 108)'
+                                else:
+                                    where += '("origin_code" = 108)'
+                            else:
+                                if row[0] != 108:
+                                    where += ' or ("previous_place_code" = ' + str(row[0]) + ' and "origin_code" != 108)'
+                                else:
+                                    where += ' or ("origin_code" = 108)'
+                        where += ')'
+                
+                '''Filtre de nacionalitat'''
+                if self.dlg.Cmb_Calcul.currentIndex() in [13]:
+                    self.dlg.btoNACIONALITAT.setChecked(False)                        
+                if self.dlg.btoNACIONALITAT.isChecked():
+                    self.dlg.progressBar.setValue(50)
+                    
+                    if self.dlg.btoEDAT.isChecked() or self.dlg.btoGENERE.isChecked() or self.dlg.btoESTUDIS.isChecked() or self.dlg.btoORIGEN.isChecked():
+                        where += ' AND '
+                    if self.dlg.btoPais_3.isChecked():
+                        llistaORG = self.dlg.LlistaPais2.selectedItems()
+                        if len(llistaORG)>0:
+                            where += '('
+                            for item in llistaORG:
+                                where += '"nation_code" = '+ item.toolTip() + ' OR '
+                            where=where[0:len(where)-4]
+                            where += ')'
+                            
+                        else:
+                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap país seleccionat.")
+                            self.dlg.GrupPestanyes.setCurrentIndex(4)
+                            self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return 
+                    elif self.dlg.btoZones_3.isChecked():
+                        llistaORG = self.dlg.LlistaZonesCont2.selectedItems()
+                        if len(llistaORG)>0:
+                            zonaCont = 'WHERE '
+                            for item in llistaORG:
+                                zonaCont += '"continent_zone" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
+
+                            zonaCont=zonaCont[0:len(zonaCont)-4]
+                            SQL_Pro = 'SELECT "country_code" from "public"."country" '  + zonaCont  + ' ORDER BY 1' 
+                            try:
+                                cur.execute(SQL_Pro)
+                                rows = cur.fetchall()
+                            except Exception as ex:
+                                self.tornaConnectat()
+                                print("Error SELECT concopdai")
+                                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                message = template.format(type(ex).__name__, ex.args)
+                                print (message)
+                                QMessageBox.information(None, "Error", "Error SELECT country_code")
+                                self.dlg.setEnabled(True)
+                                self.dlg.progressBar.setVisible(False)
+                                return
+                            where += '('
+                            for index,row in enumerate(rows,start=0):
+                                if index == 0:
+                                    where += '"nation_code" = ' + str(row[0])
+                                else:
+                                    where += ' or "nation_code" = ' + str(row[0])
+                            where += ')'
+                        else:
+                            QMessageBox.information(None, "Error", "Error:\nNo hi ha cap zona continental seleccionada.")
+                            self.dlg.GrupPestanyes.setCurrentIndex(4)
+                            self.tornaConnectat()
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return
+                    elif self.dlg.btoEuropa27_3.isChecked():
+                        SQL_Pro = 'select "country_code" from "public"."country"  WHERE  "ue27" = 1 ORDER BY 1'
+                        try:
+                            cur.execute(SQL_Pro)
+                            rows = cur.fetchall()
+                        except Exception as ex:
+                            self.tornaConnectat()
+                            print("Error SELECT concopdai")
+                            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                            message = template.format(type(ex).__name__, ex.args)
+                            print (message)
+                            QMessageBox.information(None, "Error", "Error SELECT country_code")
+                            self.dlg.setEnabled(True)
+                            self.dlg.progressBar.setVisible(False)
+                            return
+                        where += '('
+                        for index,row in enumerate(rows,start=0):
+                            if index == 0:
+                                where += '"nation_code" = ' + str(row[0])
+                            else:
+                                where += ' or "nation_code" = ' + str(row[0])
+                        where += ')'
+                
+                where += "\n"
+                self.dlg.progressBar.setValue(55)
+                '''Execució de la sentencia SQL'''
+                # TODO: Aqui s'ha d'afegir la comprovacio de metodes normals o metode llegenda
+                if self.dlg.tabWidget.currentIndex() == 0:
+                    nom_entitat=self.dlg.Cmb_Metode.itemData(self.dlg.Cmb_Metode.currentIndex(),QtCore.Qt.ToolTipRole)
+                    Metode=self.dlg.Cmb_Metode.currentText()
+                else:
+                    nom_entitat=f'layerexportat{Fitxer}'
+                    print(nom_entitat)
+                    Metode=self.dlg.comboLeyenda.currentText()
+                if self.Indicadors_selected():
+                    csv=self.Retorna_Indicador(where,nom_entitat,Metode)
+                    if csv=="error":
+                        self.tornaConnectat()
+                        template = "No hi ha cap Indicador sel·lecionat."
+                        #message = template.format(type(ex).__name__, ex.args)
+                        #print (message)
+                        QMessageBox.information(None, "Error", "No hi ha cap Indicador sel·lecionat.")
+                        self.dlg.setEnabled(True)
+                        self.dlg.progressBar.setVisible(False)
+                        return
+                else:
+                    if self.dlg.Cmb_Metode.currentText()=='ILLES':
+                        sql1 =  f'''
+                                SELECT  parcial.id_zone, parcial.geom, parcial.cadastral_zoning_reference, parcial."Habitants",
+                                        total."Habitants" AS "hab_total",
+                                        round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) AS "hab_rel",
+                                        round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) AS "densitat_9"
+                                FROM (
+                                    SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
+                                    FROM "public"."census" p
+                                    JOIN "{nom_entitat}" i
+                                    ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
+                                )
+                                '''
+                        sql2 = f'''
+                                GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom") parcial
+                                JOIN (
+                                    SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
+                                    FROM "public"."census" p
+                                    JOIN "{nom_entitat}" i
+                                    ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
+                                    GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom"
+                                ) total
+                                ON total."id_zone" = parcial."id_zone"
+                                ''' 
+                    
+                    elif self.dlg.Cmb_Metode.currentText()=='PARCELES':                            
+                        sql1 = f'''
+                                SELECT  parcial.id_parcel, parcial.geom, parcial.cadastral_reference, parcial."Habitants",
+                                        total."Habitants" AS "hab_total",
+                                        round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) AS "hab_rel",
+                                        round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) AS "densitat_9"
+                                FROM (
+                                    SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
+                                    FROM "public"."census" p
+                                    JOIN "{nom_entitat}" pa
+                                    ON p."cadastral_reference" = pa."cadastral_reference"
+                                '''
+                        sql2 = f'''
+                                GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom") parcial
+                                JOIN (
+                                    SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
+                                    FROM "public"."census" p
+                                    JOIN "{nom_entitat}" pa
+                                    ON p."cadastral_reference" = pa."cadastral_reference"
+                                    GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom"
+                                ) total
+                                ON total."id_parcel" = parcial."id_parcel"
+                                '''
+                    
+                    else:
+                        sql1 = f'''
+                                SELECT  parcial."id", parcial."geom", parcial."Habitants",
+                                        total."Habitants" AS "hab_total",
+                                        round((parcial."Habitants"::numeric/total."Habitants"::numeric)*100,2) AS "hab_rel",
+                                        round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) AS "densitat_9"
+                                FROM (
+                                    SELECT b.id, b.geom, sum(tot."Habitants") AS "Habitants"
+                                    FROM "{nom_entitat}" b
+                                    JOIN (
+                                        SELECT  p."designator",
+                                                count(*) AS "Habitants",
+                                                d."geom"
+                                        FROM "public"."census" p
+                                        JOIN "address" d
+                                        ON p."designator" = d."designator"
+                                '''
+                        sql2 = f'''
+                                GROUP BY p."designator", d."geom") tot on ST_Intersects(tot."geom", b."geom")
+                                GROUP BY b."id", b."geom") parcial
+                                JOIN (
+                                    SELECT b.id, b.geom, sum(tot."Habitants") AS "Habitants"
+                                    FROM "{nom_entitat}" b
+                                    JOIN (
+                                        SELECT p."designator", count(*) AS "Habitants", d."geom"
+                                        FROM "public"."census" p
+                                        JOIN "address" d
+                                        ON p."designator" = d."designator"
+                                        GROUP BY p."designator", d."geom"
+                                    ) tot
+                                    ON ST_Intersects(tot."geom", b."geom")
+                                    GROUP BY b."id", b."geom"
+                                ) total
+                                ON total."id" = parcial."id"
+                                '''
+
+
+                    csv = sql1 + where + sql2
+                self.dlg.progressBar.setValue(65)
+                try:
+                    self.mostraSHPperPantalla(csv, Metode)
+                    self.dlg.progressBar.setValue(90)
+                    QApplication.processEvents()
+
+                    self.dropFinal(cur, conn)
                 except Exception as ex:
                     self.tornaConnectat()
-                    self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ff7f7f')
-                    self.dlg.lblEstatConn.setText('Error: Hi ha algun camp erroni.')
-                    print ("I am unable to connect to the database")
+                    print("Error modificar la TaulaResum 2")
                     template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                     message = template.format(type(ex).__name__, ex.args)
                     print (message)
-                    QMessageBox.information(None, "Error", "Error a la connexio")
+                    QMessageBox.information(None, "Error", "No s'ha pogut modificar la TaulaResum de la base de dades.\nComprova els privilegis que tens.")
                     self.dlg.setEnabled(True)
                     self.dlg.progressBar.setVisible(False)
                     return
-                self.dlg.progressBar.setValue(100)
-                QApplication.processEvents()
+                        
+            except Exception as ex:
                 self.tornaConnectat()
-                self.dlg.setEnabled(True)
-            else:
-                QMessageBox.information(None, "Error", 'No hi ha cap connexió seleccionada.\nSeleccioneu una connexió.')
-                print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+                self.dlg.lblEstatConn.setStyleSheet('border:1px solid #000000; background-color: #ff7f7f')
+                self.dlg.lblEstatConn.setText('Error: Hi ha algun camp erroni.')
+                print ("I am unable to connect to the database")
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", "Error a la connexio")
                 self.dlg.setEnabled(True)
                 self.dlg.progressBar.setVisible(False)
-    
+                return
+            self.dlg.progressBar.setValue(100)
+            QApplication.processEvents()
+            self.tornaConnectat()
+            self.dlg.setEnabled(True)
+        
+        else:
+            QMessageBox.information(None, "Error", 'No hi ha cap connexió seleccionada.\nSeleccioneu una connexió.')
+            print ("No hi ha cap filtre seleccionat.\nSeleccioneu un filtre.")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
+
     def mostraSHPperPantalla(self, sql, capa):
         global nomBD1
         global contra1
@@ -1329,7 +1583,12 @@ class MapesDescriptiusPoblacio:
             #sql = "select * from \"ILLES\""
             uri.setConnection(host1,port1,nomBD1,usuari1,contra1)
             print ("Connectat")
-            uri.setDataSource("","("+sql+")","geom","","id")
+            if capa == "ILLES":
+                uri.setDataSource("","("+sql+")","geom","","id_zone")
+            elif capa == "PARCELES":
+                uri.setDataSource("","("+sql+")","geom","","id_parcel")
+            else:
+                uri.setDataSource("","("+sql+")","geom","","id")
             if (self.dlg.CB_Relatiu_total.isChecked() and (self.dlg.Cmb_Calcul.currentIndex() in [7,8,9,10,11,12,13,14])):
                 titol3=capa + " " + self.dlg.Cmb_Calcul.currentText()[:len(self.dlg.Cmb_Calcul.currentText())-3] +" (% relatiu al total)"
             else:
@@ -1512,7 +1771,7 @@ class MapesDescriptiusPoblacio:
                         #vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km^2'")
                     QApplication.processEvents()
 
-                    layer_settings.placement = 1
+                    layer_settings.placement = QgsPalLayerSettings.OverPoint
                     layer_settings.scaleVisibility=True
                     layer_settings.minimumScale=float(self.dlg.max.value())
                     layer_settings.maximumScale=float(self.dlg.min.value())
@@ -1586,6 +1845,182 @@ class MapesDescriptiusPoblacio:
         else:
             self.dlg.data.setEnabled(False)      
              
+    def detect_database_version(self, cur, conn):
+        global versio_db
+
+        try:
+            cur.execute("SELECT taula FROM config WHERE variable = 'versio';")
+            versio_db = cur.fetchone()[0]
+            print ("Versió de la base de dades: " + versio_db)
+        except Exception as ex:
+            print ("Error detect_database_version")
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print (message)
+            QMessageBox.information(None, "Error", "Error a la connexio")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
+            return
+        
+        if versio_db == '1.0':
+            try:
+                cur.execute("SELECT taula FROM config WHERE variable = 'parceles';")
+                parcel_name = cur.fetchone()[0]
+
+                cur.execute("SELECT taula FROM config WHERE variable = 'illes';")
+                illes_name = cur.fetchone()[0]
+
+                cur.execute("SELECT taula FROM config WHERE variable = 'portals';")
+                portals_name = cur.fetchone()[0]
+
+                cur.execute("SELECT taula FROM config WHERE variable = 'padro';")
+                padro_name = cur.fetchone()[0]
+
+                cur.execute("SELECT taula FROM config WHERE variable = 'paisos';")
+                paisos_name = cur.fetchone()[0]
+            except Exception as ex:
+                print ("Error detect_database_version")
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", "Error a la connexio")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
+                return
+            
+            try:
+                cur.execute(f"""
+                            DROP TABLE IF EXISTS parcel_temp;
+                            CREATE TABLE parcel_temp (
+                                id_parcel,
+                                geom,
+                                cadastral_reference
+                            ) AS select "id", "geom", "utm_total" FROM "{parcel_name}";
+                            """)
+                conn.commit()
+                cur.execute(f"""
+                            DROP TABLE IF EXISTS zone;
+                            CREATE TABLE zone (
+                                id_zone,
+                                geom,
+                                cadastral_zoning_reference
+                            ) AS select "id", "geom", "D_S_I" FROM "{illes_name}";
+                            """)
+                conn.commit()
+                cur.execute(f"""
+                            DROP TABLE IF EXISTS address;
+                            CREATE TABLE address (
+                                id_address,
+                                geom,
+                                cadastral_reference,
+                                designator
+                            ) AS select "id", "geom", "REF_CADAST", "Carrer_Num_Bis" FROM "{portals_name}";
+                            """)
+                conn.commit()
+                cur.execute(f"""
+                            DROP TABLE IF EXISTS census;
+                            CREATE TABLE census (
+                                id_census,
+                                cadastral_reference,
+                                cadastral_zoning_reference,
+                                origin_code,
+                                date_of_birth,
+                                sex,
+                                nation_code,
+                                studies_code,
+                                studies,
+                                previous_place_code,
+                                previous_place_name,
+                                designator
+                            ) AS SELECT 
+                                "id", 
+                                "REFCAD", 
+                                "D_S_I", 
+                                "HABCOPANA", 
+                                "HABFECNAC", 
+                                "HABELSEXO", 
+                                "HABNACION", 
+                                "HABNIVINS", 
+                                "NINDESCRI", 
+                                "HABCOMUNA", 
+                                "HABNOMUNA", 
+                                "CarrerNumBis" 
+                            FROM "{padro_name}";
+                            """)
+                conn.commit()
+                cur.execute(f"""
+                            DROP TABLE IF EXISTS country;
+                            CREATE TABLE country (
+                                id,
+                                country_code,
+                                country_name,
+                                continent,
+                                continent_zone,
+                                ue27
+                            ) AS SELECT "id", "CONCODPAI", "CONNOMPAI", "CONNOMCON", "CONZONCON", "UE27" FROM "{paisos_name}";
+                            """)
+                conn.commit()
+            except Exception as ex:
+                print ("Error detect_database_version fent taules temporals versio 1")
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", "Error a la connexio")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
+                return
+        else:
+            try:
+                cur.execute("""DROP TABLE IF EXISTS parcel_temp;
+                            CREATE TABLE parcel_temp AS SELECT * FROM parcel;""")
+                conn.commit()
+            except Exception as ex:
+                print ("Error detect_database_version fent taules temporals versio 2")
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print (message)
+                QMessageBox.information(None, "Error", "Error a la connexio")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
+                return
+            
+    def dropFinal(self, cur, conn):
+        global versio_db
+
+        if self.dlg.tabWidget.currentIndex() == 1:
+            self.DropTempTable(cur, conn, 'layerexportat')
+        self.DropTempTable(cur, conn, 'parcel_temp')
+        if versio_db == '1.0':
+            self.DropTempTable(cur, conn, 'zone')
+            self.DropTempTable(cur, conn, 'address')
+            self.DropTempTable(cur, conn, 'census')
+            self.DropTempTable(cur, conn, 'country')
+
+        if versio_db == '1.0':
+            try:
+                cur.execute("DROP TABLE IF EXISTS zone;")
+                conn.commit()
+                cur.execute("DROP TABLE IF EXISTS address;")
+                conn.commit()
+                cur.execute("DROP TABLE IF EXISTS census;")
+                conn.commit()
+                cur.execute("DROP TABLE IF EXISTS country;")
+                conn.commit()
+            except:
+                print ("Error dropFinal")
+                QMessageBox.information(None, "Error", "Error a la connexio")
+                self.dlg.setEnabled(True)
+                self.dlg.progressBar.setVisible(False)
+                return
+        try:
+            cur.execute("DROP TABLE IF EXISTS parcel_temp;")
+            conn.commit()
+        except:
+            print ("Error dropFinal")
+            QMessageBox.information(None, "Error", "Error a la connexio")
+            self.dlg.setEnabled(True)
+            self.dlg.progressBar.setVisible(False)
+            return
     
     def populateComboBox_tooltip(self,combo,list,tooltip,predef,sort):
         '''
@@ -1596,10 +2031,7 @@ class MapesDescriptiusPoblacio:
         model=QStandardItemModel(combo)
         predefInList = None
         for index,elem in enumerate(list):
-            try:
-                item = QStandardItem(unicode(elem))
-            except TypeError:
-                item = QStandardItem(str(elem))
+            item = QStandardItem(str(elem))
             item.setToolTip(tooltip[index])
             model.appendRow(item)
             if elem == predef:
@@ -1625,10 +2057,7 @@ class MapesDescriptiusPoblacio:
         model=QStandardItemModel(combo)
         predefInList = None
         for elem in list:
-            try:
-                item = QStandardItem(unicode(elem))
-            except TypeError:
-                item = QStandardItem(str(elem))
+            item = QStandardItem(str(elem))
             model.appendRow(item)
             if elem == predef:
                 predefInList = elem
@@ -1648,19 +2077,46 @@ class MapesDescriptiusPoblacio:
         if Metode=="ILLES":
             
             # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
-            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
-            sql1 += 'from (select i.*, count(*) as "Habitants" from "public"."Padro" p join "'+Entitat+'" i on p."D_S_I" = i."D_S_I"\n'
-            sql2 = 'group by i."D_S_I", i  ."id") numerador join \n'
-            sql2 += '(select i.*, count(*) as "Habitants" from "public"."Padro" p join "'+Entitat+'" i on p."D_S_I" = i."D_S_I"'
-            sql3 = 'group by i."D_S_I", i."id") denominador\n'
-            sql3 += 'on denominador."id" = numerador."id"'
+            sql1 = f'''
+                    SELECT  numerador.id_zone, numerador.geom, numerador.cadastral_zoning_reference, numerador."Habitants",
+                            round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) AS "Index"
+                    FROM (
+                        SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
+                        FROM "public"."census" p
+                        JOIN "{Entitat}" i
+                        ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
+                    '''
+            sql2 = f'''
+                        GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom"
+                    ) numerador
+                    JOIN (
+                        SELECT i.id_zone, i.geom, count(*) AS "Habitants"
+                        FROM "public"."census" p
+                        JOIN "{Entitat}" i
+                        ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
+                    '''
+            sql3 = f'''
+                        GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom"
+                    ) denominador
+                    ON denominador."id_zone" = numerador."id_zone"
+                    '''
             # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
             
             #Edat
             if self.dlg.Cmb_Calcul.currentIndex()==7: 
-                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
-                sql1 += 'from (select i.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "'+Entitat+'" i on p."D_S_I" = i."D_S_I"\n'
-                sql2 = 'group by i."D_S_I", i  ."id") numerador\n'
+                sql1 = f'''
+                        SELECT  numerador.id_zone, numerador.geom, numerador.cadastral_zoning_reference, numerador."Habitants",
+                                round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) AS "Index"
+                        FROM (
+                            SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants",sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
+                            FROM "public"."census" p
+                            JOIN "{Entitat}" i
+                            ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
+                        '''
+                sql2 = f'''
+                            GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom"
+                        ) numerador
+                        '''
                 csv = sql1 + where + sql2
             else:
                 csv=self.Where_Indicadors(sql1,sql2,sql3,where)
@@ -1669,39 +2125,116 @@ class MapesDescriptiusPoblacio:
         # PARCELES
         elif Metode=="PARCELES":
             # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
-            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
-            sql1 += 'from (select pa.*, count(*) as "Habitants" from "public"."Padro" p join "'+Entitat+'" pa on p."REFCAD" = pa."UTM"\n'
-            sql2 = 'group by pa."id",pa."UTM") numerador join \n'
-            sql2 += '(select pa.*, count(*) as "Habitants" from "public"."Padro"  p join "'+Entitat+'" pa on p."REFCAD" = pa."UTM"'
-            sql3 = 'group by pa."id",pa."UTM") denominador\n'
-            sql3 += 'on denominador."id" = numerador."id"'
+            sql1 = f'''
+                    SELECT  numerador.id_parcel, numerador.geom, numerador.cadastral_reference, numerador."Habitants",
+                            round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) AS "Index"
+                    FROM (
+                        SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
+                        FROM "public"."census" p
+                        JOIN "{Entitat}" pa
+                        ON p."cadastral_reference" = pa."cadastral_reference"
+                    '''
+            sql2 = f'''
+                        GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom"
+                    ) numerador
+                    JOIN (
+                        SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
+                        FROM "public"."census" p
+                        JOIN "{Entitat}" pa
+                        ON p."cadastral_reference" = pa."cadastral_reference"
+                    '''
+            sql3 = f'''
+                        GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom"
+                    ) denominador
+                    ON denominador."id_parcel" = numerador."id_parcel"
+                    '''
             # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
         
             #Edat
             if self.dlg.Cmb_Calcul.currentIndex()==7: 
-                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
-                sql1 += 'from (select pa.*, count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "'+Entitat+'" pa on p."REFCAD" = pa."UTM"\n'
-                sql2 = 'group by pa."id",pa."UTM") numerador\n'
+                sql1 = f'''
+                        SELECT  numerador.id_parcel, numerador.geom, numerador.cadastral_reference, numerador."Habitants", numerador."Edat",
+                                round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) AS "Index"
+                        FROM (
+                            SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants",sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
+                            FROM "public"."census" p
+                            JOIN "{Entitat}" pa
+                            ON p."cadastral_reference" = pa."cadastral_reference"
+                        '''
+                sql2 = f'''
+                            GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom"
+                        ) numerador
+                        '''
                 csv = sql1 + where + sql2
             else:
                 csv=self.Where_Indicadors(sql1,sql2,sql3,where)
         
         # SECCIONS
-        else: # (Metode=="SECCIONS" or Metode=="BARRIS" or Metode=="DISTRICTES POSTALS" or Metode=="DISTRICTES INE" or Metode=="SECTORS"):
+        else: # (Metode=="SECCIONS" or Metode=="BARRIS" or Metode=="DISTRICTES POSTALS" or Metode=="DISTRICTES INE" or Metode=="SECTORS") or Metode == LLEGENDA:
             # INICI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
-            sql1 = 'select numerador.*, round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) as "Index"\n'
-            sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-            sql2 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador join \n'
-            sql2 += '(select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-            sql3 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") denominador\n'
-            sql3 += 'on denominador."id" = numerador."id"'
+            sql1 = f'''
+                    SELECT  numerador.id, numerador.geom, numerador."Habitants", numerador."Edat",
+                            round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) AS "Index"
+                    FROM (
+                        SELECT b.id, b.geom, sum(tot."Habitants") AS "Habitants", sum(tot."Edat") AS "Edat"
+                        FROM {Entitat} b
+                        JOIN (
+                            SELECT p."designator", d."geom", count(*) AS "Habitants", sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
+                            FROM "public"."census" p
+                            JOIN "address" d
+                            ON p."designator" = d."designator"
+                    '''
+            sql2 = f'''
+                            GROUP BY p."designator", d."geom"
+                        ) tot
+                        ON ST_Intersects(tot."geom", b."geom")
+                        GROUP BY b."id", b."geom"
+                    ) numerador
+                    JOIN (
+                        SELECT b.id, b.geom, sum(tot."Habitants") AS "Habitants", sum(tot."Edat") AS "Edat"
+                        FROM {Entitat} b
+                        JOIN (
+                            SELECT p."designator", d."geom", count(*) AS "Habitants", sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
+                            FROM "public"."census" p
+                            JOIN "address" d
+                            ON p."designator" = d."designator"
+                    '''
+            sql3 = f'''
+                            GROUP BY p."designator", d."geom"
+                        ) tot
+                    ON ST_Intersects(tot."geom", b."geom")
+                    GROUP BY b."id", b."geom"
+                    ) denominador
+                    ON denominador."id" = numerador."id"
+                    '''
             # FI PART IGUAL EN TOTS LLEVAT DEL PRIMER (I_edat)
             
             #Edat
             if self.dlg.Cmb_Calcul.currentIndex()==7: 
-                sql1 = 'select numerador.*, round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) as "Index"\n'
-                sql1 += 'from (select b.*, sum(tot."Habitants") as "Habitants",sum(tot."Edat") as "Edat" from "'+Entitat+'" b join  (select p."CarrerNumBis" ,d."geom", count(*) as "Habitants",sum(extract(year from age(current_date,"HABFECNAC"))) as "Edat" from "public"."Padro" p join "dintreilla" d on p."CarrerNumBis" = d."Carrer_Num_Bis"\n'
-                sql2 = 'group by p."CarrerNumBis",d."geom") tot on ST_Intersects(tot."geom", b."geom") group by b."id") numerador\n'
+                sql1 = f'''
+                        SELECT  numerador.id, numerador.geom, numerador."Habitants", numerador."Edat",
+                                round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) AS "Index"
+                        FROM (
+                            SELECT  b.id, b.geom,
+                                    sum(tot."Habitants") AS "Habitants", 
+                                    sum(tot."Edat") AS "Edat"
+                            FROM {Entitat} b
+                            JOIN (
+                                SELECT  p."designator",
+                                        d."geom",
+                                        count(*) AS "Habitants",
+                                        sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
+                                FROM "public"."census" p
+                                JOIN "address" d
+                                ON p."designator" = d."designator"
+                        '''
+                sql2 = f'''
+                                GROUP BY p."designator", d."geom"
+                            ) tot
+                            ON ST_Intersects(tot."geom", b."geom")
+                            GROUP BY b."id", b."geom"
+                        ) numerador
+                        '''
                 csv = sql1 + where + sql2
             else:
                 csv=self.Where_Indicadors(sql1,sql2,sql3,where)
@@ -1712,37 +2245,79 @@ class MapesDescriptiusPoblacio:
         
 
         if self.dlg.Cmb_Calcul.currentIndex()==8:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=65)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))<=15)\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))>=65)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))<=15)\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==9:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=85)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))<=65)\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))>=85)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))<=65)\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==10:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=60 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=19)\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))>=60 and extract(year from age(current_date,"date_of_birth"))<=64)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))>=15 and extract(year from age(current_date,"date_of_birth"))<=19)\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==11:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))<=15)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))<=15)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))>=16 and extract(year from age(current_date,"date_of_birth"))<=64)\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==12:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))>=65)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=16 and extract(year from age(current_date,"HABFECNAC"))<=64)\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))>=65)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))>=16 and extract(year from age(current_date,"date_of_birth"))<=64)\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==13:
-            sql_where1 = where +' AND ("HABCOPANA"<>\'108\')\n'
+            sql_where1 = where +' AND ("origin_code"<>\'108\')\n'
             sql_where2 = where + '\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         elif self.dlg.Cmb_Calcul.currentIndex()==14:
-            sql_where1 = where +' AND (extract(year from age(current_date,"HABFECNAC"))<=14)\n'
-            sql_where2 = where + ' AND (extract(year from age(current_date,"HABFECNAC"))>=15 and extract(year from age(current_date,"HABFECNAC"))<=49 and "HABELSEXO"=\'6\')\n'
+            sql_where1 = where +' AND (extract(year from age(current_date,"date_of_birth"))<=14)\n'
+            sql_where2 = where + ' AND (extract(year from age(current_date,"date_of_birth"))>=15 and extract(year from age(current_date,"date_of_birth"))<=49 and "sex"=\'6\')\n'
             csv = sql1 + sql_where1 + sql2 + sql_where2 + sql3
         else:
             csv="error"
         return csv
 
+    def DropTemporalTables(self):
+        '''
+        Aquesta funció s'encarrega d'eliminar les taules temporals no esborrades
+        '''     
+        self.DropTempTable("TAULA_FINAL_")
+        self.DropTempTable("ZI_Total_Combi_")
+        self.DropTempTable("graf_utilitzat_")
+        self.DropTempTable("JoinIlles_Habitants_Temp_")
+        if versio_db == '1.0':
+            self.DropTempTable("zone")
+            self.DropTempTable("address")
+            self.DropTempTable("stretch")
+            self.DropTempTable("stretch_vertices_pgr")
+    
+    def DropTempTable(self, cur, conn, taula):
+        '''
+        Aquesta funció s'encarrega de construir els sqls necessaris per eliminar les taules temporals no esborrades
+        '''     
+        SQLDrop="SELECT CONCAT('DROP TABLE IF EXISTS \"', TABLE_SCHEMA, '\".""\"', TABLE_NAME, '\""";') FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '"+taula+"%' AND TABLE_SCHEMA = 'public';"
+        try:
+            cur.execute(SQLDrop)
+            llista = cur.fetchall()
+            for elem in llista:
+                try:
+                    cur.execute(elem[0])
+                except Exception as ex:  
+                    self.dlg.setEnabled(True)          
+                    msg_error="Error en la sentencia SQL següent:\n"+elem[0]
+                    print(msg_error)
+                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                    message = template.format(type(ex).__name__, ex.args)
+                    print (message)
+                    QMessageBox.information(None, "Error", msg_error)
+            conn.commit()
+        except Exception as ex:
+            self.dlg.setEnabled(True)
+            msg_error="Error en la sentencia SQL següent:\n"+SQLDrop
+            print(msg_error)
+            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+            message = template.format(type(ex).__name__, ex.args)
+            print (message)
+            QMessageBox.information(None, "Error", msg_error)    
     
     def getConnections(self):
         '''
