@@ -89,7 +89,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240507"
+Versio_modul="V_Q3.240513"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -904,8 +904,9 @@ class MapesDescriptiusPoblacio:
                 aux = []
                 layers = QgsProject.instance().mapLayers().values()
                 for layer in layers:
-                    if layer.geometryType() == QgsWkbTypes.PolygonGeometry:
-                        aux.append(layer.name())
+                    if isinstance(layer, QgsVectorLayer):
+                        if layer.geometryType() == QgsWkbTypes.PolygonGeometry:
+                            aux.append(layer.name())
 
                 self.populateComboBox(self.dlg.comboLeyenda, aux, 'Selecciona una entitat', True)
             except Exception as ex:
