@@ -89,14 +89,13 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240517"
+Versio_modul="V_Q3.240513"
 geometria=""
 connexioFeta=False
 QEstudis=None
 Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE","SECTORS"]
 #Llista_Camps_Metodes=["ILLES","parcel","Seccions","Barris","DistrictesPostals","Districtes","Sectors"]
-#Llista_Camps_Metodes=[f"zone{Fitxer}",f"parcel_temp{Fitxer}","seccions","barris","districtes_postals","districtes","sectors"]
-Llista_Camps_Metodes=[]
+Llista_Camps_Metodes=["zone","parcel_temp","seccions","barris","districtes_postals","districtes","sectors"]
 TEMPORARY_PATH=""
 versio_db = ""
 
@@ -726,15 +725,15 @@ class MapesDescriptiusPoblacio:
             
             #Sentencia SQL Estudis
             self.dlg.llistaEstudis.clear()
-            sql=f'select distinct on ("studies_code") "studies_code", "studies" from "public"."census{Fitxer}" ORDER BY "studies_code", "studies";'
+            sql='select distinct on ("studies_code") "studies_code", "studies" from "public"."census" ORDER BY "studies_code", "studies";'
             self.dlg.LlistaPais.clear()
             self.dlg.LlistaPais2.clear()
-            #sql2 = 'select distinct("previous_place_code"), "previous_place_name" FROM "public"."census{Fitxer}" where "origin_code" != 108 ORDER BY 2'
-            sql2 = f'SELECT distinct on (A."previous_place_code") A."previous_place_code", B."country_name" FROM "public"."census{Fitxer}" A JOIN "public"."country{Fitxer}" B ON A."previous_place_code" = B."country_code"::INTEGER ORDER BY A."previous_place_code", B."country_name";'
+            #sql2 = 'select distinct("previous_place_code"), "previous_place_name" FROM "public"."census" where "origin_code" != 108 ORDER BY 2'
+            sql2 = 'SELECT distinct on (A."previous_place_code") A."previous_place_code", B."country_name" FROM "public"."census" A JOIN "public"."country" B ON A."previous_place_code" = B."country_code"::INTEGER ORDER BY A."previous_place_code", B."country_name";'
             self.dlg.LlistaZonesCont.clear()
             self.dlg.LlistaZonesCont2.clear()
-            sql3 = f'select distinct "continent_zone" FROM "public"."country{Fitxer}" WHERE "continent_zone" IS NOT NULL ORDER BY "continent_zone"'
-            sql4 = f'select description from pg_description join pg_class on pg_description.objoid = pg_class.oid join pg_namespace on pg_class.relnamespace = pg_namespace.oid where relname = \'census{Fitxer}\' and nspname=\'public\''
+            sql3 = 'select distinct "continent_zone" FROM "public"."country" WHERE "continent_zone" IS NOT NULL ORDER BY "continent_zone"'
+            sql4 = 'select description from pg_description join pg_class on pg_description.objoid = pg_class.oid join pg_namespace on pg_class.relnamespace = pg_namespace.oid where relname = \'census\' and nspname=\'public\''
            
             
             #Connexio
@@ -957,6 +956,8 @@ class MapesDescriptiusPoblacio:
         
         s = QSettings()
 
+        Fitxer=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+
         uri = QgsDataSourceUri()
         try:
             uri.setConnection(host1, port1, nomBD1, usuari1, contra1)
@@ -1070,15 +1071,15 @@ class MapesDescriptiusPoblacio:
                         for layer in layers:
                             if layer.name() == self.dlg.comboLeyenda.currentText():
                                 try:
-                                    sql_SRID = "SELECT Find_SRID('public', f'zone{Fitxer}', 'geom')"
+                                    sql_SRID = "SELECT Find_SRID('public', 'zone', 'geom')"
                                     cur.execute(sql_SRID)
                                 except Exception as ex:
                                     self.dlg.setEnabled(True)
-                                    print(f"Error SELECT SRID zone{Fitxer}")
+                                    print("Error SELECT SRID zone")
                                     template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                                     message = template.format(type(ex).__name__, ex.args)
                                     print (message)
-                                    QMessageBox.information(None, "Error", f"Error SELECT SRID zone{Fitxer}")
+                                    QMessageBox.information(None, "Error", "Error SELECT SRID zone")
                                     conn.rollback()
                                     return
                                 auxlist = cur.fetchall()
@@ -1273,7 +1274,7 @@ class MapesDescriptiusPoblacio:
                             for item in llistaORG:
                                 zonaCont += '"continent_zone" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
                             zonaCont=zonaCont[0:len(zonaCont)-4]
-                            SQL_Pro = f'SELECT "country_code" from "public"."country{Fitxer}" '  + zonaCont  + ' ORDER BY 1'
+                            SQL_Pro = 'SELECT "country_code" from "public"."country" '  + zonaCont  + ' ORDER BY 1'
                             try:  
                                 cur.execute(SQL_Pro)
                                 rows = cur.fetchall()
@@ -1308,7 +1309,7 @@ class MapesDescriptiusPoblacio:
                             self.dlg.progressBar.setVisible(False)
                             return
                     elif self.dlg.btoEuropa27.isChecked():
-                        SQL_Pro = f'select "country_code" from "public"."country{Fitxer}"  WHERE  "ue27" = 1 ORDER BY 1'
+                        SQL_Pro = 'select "country_code" from "public"."country"  WHERE  "ue27" = 1 ORDER BY 1'
                         try:
                             cur.execute(SQL_Pro)
                             rows = cur.fetchall()
@@ -1368,7 +1369,7 @@ class MapesDescriptiusPoblacio:
                                 zonaCont += '"continent_zone" = '  + chr(39) + item.toolTip().replace("\'","''")  + chr(39) + ' OR '
 
                             zonaCont=zonaCont[0:len(zonaCont)-4]
-                            SQL_Pro = f'SELECT "country_code" from "public"."country{Fitxer}" '  + zonaCont  + ' ORDER BY 1' 
+                            SQL_Pro = 'SELECT "country_code" from "public"."country" '  + zonaCont  + ' ORDER BY 1' 
                             try:
                                 cur.execute(SQL_Pro)
                                 rows = cur.fetchall()
@@ -1397,7 +1398,7 @@ class MapesDescriptiusPoblacio:
                             self.dlg.progressBar.setVisible(False)
                             return
                     elif self.dlg.btoEuropa27_3.isChecked():
-                        SQL_Pro = f'select "country_code" from "public"."country{Fitxer}"  WHERE  "ue27" = 1 ORDER BY 1'
+                        SQL_Pro = 'select "country_code" from "public"."country"  WHERE  "ue27" = 1 ORDER BY 1'
                         try:
                             cur.execute(SQL_Pro)
                             rows = cur.fetchall()
@@ -1450,7 +1451,7 @@ class MapesDescriptiusPoblacio:
                                         round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) AS "densitat_9"
                                 FROM (
                                     SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
-                                    FROM "public"."census{Fitxer}" p
+                                    FROM "public"."census" p
                                     JOIN "{nom_entitat}" i
                                     ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
                                 )
@@ -1459,7 +1460,7 @@ class MapesDescriptiusPoblacio:
                                 GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom") parcial
                                 JOIN (
                                     SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
-                                    FROM "public"."census{Fitxer}" p
+                                    FROM "public"."census" p
                                     JOIN "{nom_entitat}" i
                                     ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
                                     GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom"
@@ -1475,7 +1476,7 @@ class MapesDescriptiusPoblacio:
                                         round(((parcial."Habitants"/(ST_Area(parcial."geom")/10^6))::numeric)::numeric,2) AS "densitat_9"
                                 FROM (
                                     SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
-                                    FROM "public"."census{Fitxer}" p
+                                    FROM "public"."census" p
                                     JOIN "{nom_entitat}" pa
                                     ON p."cadastral_reference" = pa."cadastral_reference"
                                 '''
@@ -1483,7 +1484,7 @@ class MapesDescriptiusPoblacio:
                                 GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom") parcial
                                 JOIN (
                                     SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
-                                    FROM "public"."census{Fitxer}" p
+                                    FROM "public"."census" p
                                     JOIN "{nom_entitat}" pa
                                     ON p."cadastral_reference" = pa."cadastral_reference"
                                     GROUP BY pa."id_parcel", pa."cadastral_reference", pa."geom"
@@ -1504,8 +1505,8 @@ class MapesDescriptiusPoblacio:
                                         SELECT  p."designator",
                                                 count(*) AS "Habitants",
                                                 d."geom"
-                                        FROM "public"."census{Fitxer}" p
-                                        JOIN "address{Fitxer}" d
+                                        FROM "public"."census" p
+                                        JOIN "address" d
                                         ON p."designator" = d."designator"
                                 '''
                         sql2 = f'''
@@ -1516,8 +1517,8 @@ class MapesDescriptiusPoblacio:
                                     FROM "{nom_entitat}" b
                                     JOIN (
                                         SELECT p."designator", count(*) AS "Habitants", d."geom"
-                                        FROM "public"."census{Fitxer}" p
-                                        JOIN "address{Fitxer}" d
+                                        FROM "public"."census" p
+                                        JOIN "address" d
                                         ON p."designator" = d."designator"
                                         GROUP BY p."designator", d."geom"
                                     ) tot
@@ -1890,8 +1891,8 @@ class MapesDescriptiusPoblacio:
             
             try:
                 cur.execute(f"""
-                            DROP TABLE IF EXISTS parcel_temp{Fitxer};
-                            CREATE TABLE parcel_temp{Fitxer} (
+                            DROP TABLE IF EXISTS parcel_temp;
+                            CREATE TABLE parcel_temp (
                                 id_parcel,
                                 geom,
                                 cadastral_reference
@@ -1899,8 +1900,8 @@ class MapesDescriptiusPoblacio:
                             """)
                 conn.commit()
                 cur.execute(f"""
-                            DROP TABLE IF EXISTS zone{Fitxer};
-                            CREATE TABLE zone{Fitxer} (
+                            DROP TABLE IF EXISTS zone;
+                            CREATE TABLE zone (
                                 id_zone,
                                 geom,
                                 cadastral_zoning_reference
@@ -1908,8 +1909,8 @@ class MapesDescriptiusPoblacio:
                             """)
                 conn.commit()
                 cur.execute(f"""
-                            DROP TABLE IF EXISTS address{Fitxer};
-                            CREATE TABLE address{Fitxer} (
+                            DROP TABLE IF EXISTS address;
+                            CREATE TABLE address (
                                 id_address,
                                 geom,
                                 cadastral_reference,
@@ -1918,8 +1919,8 @@ class MapesDescriptiusPoblacio:
                             """)
                 conn.commit()
                 cur.execute(f"""
-                            DROP TABLE IF EXISTS census{Fitxer};
-                            CREATE TABLE census{Fitxer} (
+                            DROP TABLE IF EXISTS census;
+                            CREATE TABLE census (
                                 id_census,
                                 cadastral_reference,
                                 cadastral_zoning_reference,
@@ -1949,8 +1950,8 @@ class MapesDescriptiusPoblacio:
                             """)
                 conn.commit()
                 cur.execute(f"""
-                            DROP TABLE IF EXISTS country{Fitxer};
-                            CREATE TABLE country{Fitxer} (
+                            DROP TABLE IF EXISTS country;
+                            CREATE TABLE country (
                                 id,
                                 country_code,
                                 country_name,
@@ -1971,8 +1972,8 @@ class MapesDescriptiusPoblacio:
                 return
         else:
             try:
-                cur.execute(f"""DROP TABLE IF EXISTS parcel_temp{Fitxer};
-                            CREATE TABLE parcel_temp{Fitxer} AS SELECT * FROM parcel;""")
+                cur.execute("""DROP TABLE IF EXISTS parcel_temp;
+                            CREATE TABLE parcel_temp AS SELECT * FROM parcel;""")
                 conn.commit()
             except Exception as ex:
                 print ("Error detect_database_version fent taules temporals versio 2")
@@ -1989,22 +1990,22 @@ class MapesDescriptiusPoblacio:
 
         if self.dlg.tabWidget.currentIndex() == 1:
             self.DropTempTable(cur, conn, 'layerexportat')
-        self.DropTempTable(cur, conn, f'parcel_temp{Fitxer}')
+        self.DropTempTable(cur, conn, 'parcel_temp')
         if versio_db == '1.0':
-            self.DropTempTable(cur, conn, f'zone{Fitxer}')
-            self.DropTempTable(cur, conn, f'address{Fitxer}')
-            self.DropTempTable(cur, conn, f'census{Fitxer}')
-            self.DropTempTable(cur, conn, f'country{Fitxer}')
+            self.DropTempTable(cur, conn, 'zone')
+            self.DropTempTable(cur, conn, 'address')
+            self.DropTempTable(cur, conn, 'census')
+            self.DropTempTable(cur, conn, 'country')
 
         if versio_db == '1.0':
             try:
-                cur.execute(f"DROP TABLE IF EXISTS zone{Fitxer};")
+                cur.execute("DROP TABLE IF EXISTS zone;")
                 conn.commit()
-                cur.execute(f"DROP TABLE IF EXISTS address{Fitxer};")
+                cur.execute("DROP TABLE IF EXISTS address;")
                 conn.commit()
-                cur.execute(f"DROP TABLE IF EXISTS census{Fitxer};")
+                cur.execute("DROP TABLE IF EXISTS census;")
                 conn.commit()
-                cur.execute(f"DROP TABLE IF EXISTS country{Fitxer};")
+                cur.execute("DROP TABLE IF EXISTS country;")
                 conn.commit()
             except:
                 print ("Error dropFinal")
@@ -2013,7 +2014,7 @@ class MapesDescriptiusPoblacio:
                 self.dlg.progressBar.setVisible(False)
                 return
         try:
-            cur.execute(f"DROP TABLE IF EXISTS parcel_temp{Fitxer};")
+            cur.execute("DROP TABLE IF EXISTS parcel_temp;")
             conn.commit()
         except:
             print ("Error dropFinal")
@@ -2082,7 +2083,7 @@ class MapesDescriptiusPoblacio:
                             round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) AS "Index"
                     FROM (
                         SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants"
-                        FROM "public"."census{Fitxer}" p
+                        FROM "public"."census" p
                         JOIN "{Entitat}" i
                         ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
                     '''
@@ -2091,7 +2092,7 @@ class MapesDescriptiusPoblacio:
                     ) numerador
                     JOIN (
                         SELECT i.id_zone, i.geom, count(*) AS "Habitants"
-                        FROM "public"."census{Fitxer}" p
+                        FROM "public"."census" p
                         JOIN "{Entitat}" i
                         ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
                     '''
@@ -2109,7 +2110,7 @@ class MapesDescriptiusPoblacio:
                                 round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) AS "Index"
                         FROM (
                             SELECT i.id_zone, i.geom, i.cadastral_zoning_reference, count(*) AS "Habitants",sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
-                            FROM "public"."census{Fitxer}" p
+                            FROM "public"."census" p
                             JOIN "{Entitat}" i
                             ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
                         '''
@@ -2130,7 +2131,7 @@ class MapesDescriptiusPoblacio:
                             round((numerador."Habitants"::numeric/denominador."Habitants"::numeric)*100,1) AS "Index"
                     FROM (
                         SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
-                        FROM "public"."census{Fitxer}" p
+                        FROM "public"."census" p
                         JOIN "{Entitat}" pa
                         ON p."cadastral_reference" = pa."cadastral_reference"
                     '''
@@ -2139,7 +2140,7 @@ class MapesDescriptiusPoblacio:
                     ) numerador
                     JOIN (
                         SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants"
-                        FROM "public"."census{Fitxer}" p
+                        FROM "public"."census" p
                         JOIN "{Entitat}" pa
                         ON p."cadastral_reference" = pa."cadastral_reference"
                     '''
@@ -2157,7 +2158,7 @@ class MapesDescriptiusPoblacio:
                                 round((numerador."Edat"::numeric/numerador."Habitants"::numeric),1) AS "Index"
                         FROM (
                             SELECT pa.id_parcel, pa.geom, pa.cadastral_reference, count(*) AS "Habitants",sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
-                            FROM "public"."census{Fitxer}" p
+                            FROM "public"."census" p
                             JOIN "{Entitat}" pa
                             ON p."cadastral_reference" = pa."cadastral_reference"
                         '''
@@ -2180,8 +2181,8 @@ class MapesDescriptiusPoblacio:
                         FROM {Entitat} b
                         JOIN (
                             SELECT p."designator", d."geom", count(*) AS "Habitants", sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
-                            FROM "public"."census{Fitxer}" p
-                            JOIN "address{Fitxer}" d
+                            FROM "public"."census" p
+                            JOIN "address" d
                             ON p."designator" = d."designator"
                     '''
             sql2 = f'''
@@ -2195,8 +2196,8 @@ class MapesDescriptiusPoblacio:
                         FROM {Entitat} b
                         JOIN (
                             SELECT p."designator", d."geom", count(*) AS "Habitants", sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
-                            FROM "public"."census{Fitxer}" p
-                            JOIN "address{Fitxer}" d
+                            FROM "public"."census" p
+                            JOIN "address" d
                             ON p."designator" = d."designator"
                     '''
             sql3 = f'''
@@ -2224,8 +2225,8 @@ class MapesDescriptiusPoblacio:
                                         d."geom",
                                         count(*) AS "Habitants",
                                         sum(extract(year FROM age(current_date,"date_of_birth"))) AS "Edat"
-                                FROM "public"."census{Fitxer}" p
-                                JOIN "address{Fitxer}" d
+                                FROM "public"."census" p
+                                JOIN "address" d
                                 ON p."designator" = d."designator"
                         '''
                 sql2 = f'''
@@ -2285,8 +2286,8 @@ class MapesDescriptiusPoblacio:
         self.DropTempTable("graf_utilitzat_")
         self.DropTempTable("JoinIlles_Habitants_Temp_")
         if versio_db == '1.0':
-            self.DropTempTable(f"zone{Fitxer}")
-            self.DropTempTable(f"address{Fitxer}")
+            self.DropTempTable("zone")
+            self.DropTempTable("address")
             self.DropTempTable("stretch")
             self.DropTempTable("stretch_vertices_pgr")
     
@@ -2357,8 +2358,6 @@ class MapesDescriptiusPoblacio:
 
 
     def run(self):
-        global Fitxer
-        global Llista_Camps_Metodes
         '''
         Run method that performs all the real work
         '''
@@ -2369,8 +2368,6 @@ class MapesDescriptiusPoblacio:
         
         self.populateComboBox(self.dlg.comboConnexions ,conn,'Selecciona connexió',True)
         # Run the dialog event loop
-        Fitxer=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
-        Llista_Camps_Metodes=[f"zone{Fitxer}",f"parcel_temp{Fitxer}","seccions","barris","districtes_postals","districtes","sectors"]
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
