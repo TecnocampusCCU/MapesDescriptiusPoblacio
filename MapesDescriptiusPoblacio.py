@@ -89,13 +89,14 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240513"
+Versio_modul="V_Q3.240524"
 geometria=""
 connexioFeta=False
 QEstudis=None
-Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE","SECTORS"]
+#Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE","SECTORS"]
+Llista_Metodes=["ILLES","PARCELES","SECCIONS","BARRIS","DISTRICTES POSTALS","DISTRICTES INE"]
 #Llista_Camps_Metodes=["ILLES","parcel","Seccions","Barris","DistrictesPostals","Districtes","Sectors"]
-Llista_Camps_Metodes=["zone","parcel_temp","seccions","barris","districtes_postals","districtes","sectors"]
+Llista_Camps_Metodes=["zone","parcel_temp","seccions","barris","districtes_postals","districtes"]
 TEMPORARY_PATH=""
 versio_db = ""
 
@@ -1119,6 +1120,35 @@ class MapesDescriptiusPoblacio:
                                     conn.rollback()
                                     return
                                 
+                                # Canviar el id del layerexportat sigui quin sigui a id
+                                try:
+                                    cur.execute(f'''
+                                                    SELECT column_name
+                                                    FROM information_schema.columns
+                                                    WHERE table_name = 'layerexportat{Fitxer}'
+                                                ''')
+                                    columns = cur.fetchall()
+
+                                    for column in columns:
+                                        column_name = column[0]
+                                        if column_name.startswith('id'):
+                                            new_column_name = 'id'
+                                            cur.execute(f'''
+                                                            ALTER TABLE "layerexportat{Fitxer}"
+                                                            RENAME COLUMN "{column_name}" TO "{new_column_name}"
+                                                        ''')
+                                            break
+                                    conn.commit()
+                                except Exception as ex:
+                                    self.dlg.setEnabled(True)
+                                    print("Error ALTER TABLE layerexportat id")
+                                    template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                                    message = template.format(type(ex).__name__, ex.args)
+                                    print (message)
+                                    QMessageBox.information(None, "Error", "Error ALTER TABLE layerexportat id")
+                                    conn.rollback()
+                                    return
+                                
                                 select = 'SELECT COUNT(*) FROM "layerexportat'+Fitxer+'";'
 
                                 try:
@@ -1454,7 +1484,6 @@ class MapesDescriptiusPoblacio:
                                     FROM "public"."census" p
                                     JOIN "{nom_entitat}" i
                                     ON p."cadastral_zoning_reference" = i."cadastral_zoning_reference"
-                                )
                                 '''
                         sql2 = f'''
                                 GROUP BY i."cadastral_zoning_reference", i."id_zone", i."geom") parcial
@@ -1678,7 +1707,7 @@ class MapesDescriptiusPoblacio:
                     #densitat
                     if self.dlg.Cmb_Calcul.currentIndex()==4: 
                         fieldname="densitat_9"
-                        template = "%1 - %2 habitants/km^2"
+                        template = "%1 - %2 habitants/km²"
                     
 
                     numberOfClasses=int(float(self.dlg.LE_rang.text()))
@@ -1766,10 +1795,10 @@ class MapesDescriptiusPoblacio:
                     #densitat
                     if self.dlg.Cmb_Calcul.currentIndex()==4: 
                         layer_settings.isExpression=True
-                        layer_settings.fieldName = "to_string(densitat_9)+ ' hab/km^2'"
+                        layer_settings.fieldName = "to_string(densitat_9)+ ' hab/km²'"
 
                         #vlayer.setCustomProperty("labeling/isExpression", True)
-                        #vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km^2'")
+                        #vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km²'")
                     QApplication.processEvents()
 
                     layer_settings.placement = QgsPalLayerSettings.OverPoint
@@ -1802,7 +1831,7 @@ class MapesDescriptiusPoblacio:
                         QApplication.processEvents()
                     else:
                         vlayer.setCustomProperty("labeling/isExpression", True)
-                        vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km^2'")
+                        vlayer.setCustomProperty("labeling/fieldName", "to_string(densitat_9)+ ' hab/km²'")
                     vlayer.setCustomProperty("labeling/placement", "1")
                     vlayer.triggerRepaint()
                     """

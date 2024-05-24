@@ -158,7 +158,7 @@
     <enum>QTabWidget::North</enum>
    </property>
    <property name="currentIndex">
-    <number>0</number>
+    <number>1</number>
    </property>
    <widget class="QWidget" name="filtres">
     <attribute name="title">
@@ -1532,7 +1532,7 @@ color: rgb(0, 0, 0);</string>
      </item>
      <item>
       <property name="text">
-       <string>- Densitat (habitants/km2)</string>
+       <string>- Densitat (habitants/km²)</string>
       </property>
      </item>
      <item>
