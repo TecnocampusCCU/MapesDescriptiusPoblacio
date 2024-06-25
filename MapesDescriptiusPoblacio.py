@@ -89,7 +89,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240524"
+Versio_modul="V_Q3.240625"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -1131,7 +1131,7 @@ class MapesDescriptiusPoblacio:
 
                                     for column in columns:
                                         column_name = column[0]
-                                        if column_name.startswith('id'):
+                                        if column_name.startswith('id') and column_name != 'id':
                                             new_column_name = 'id'
                                             cur.execute(f'''
                                                             ALTER TABLE "layerexportat{Fitxer}"
