@@ -89,7 +89,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240625"
+Versio_modul="V_Q3.240725"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -1128,16 +1128,23 @@ class MapesDescriptiusPoblacio:
                                                     WHERE table_name = 'layerexportat{Fitxer}'
                                                 ''')
                                     columns = cur.fetchall()
-
+                                    id_sol=False
                                     for column in columns:
                                         column_name = column[0]
-                                        if column_name.startswith('id') and column_name != 'id':
-                                            new_column_name = 'id'
-                                            cur.execute(f'''
-                                                            ALTER TABLE "layerexportat{Fitxer}"
-                                                            RENAME COLUMN "{column_name}" TO "{new_column_name}"
-                                                        ''')
+                                        if column_name=='id':
+                                            id_sol=True
                                             break
+
+                                    if (id_sol==False):
+                                        for column in columns:
+                                            column_name = column[0]
+                                            if column_name.startswith('id') and column_name != 'id':
+                                                new_column_name = 'id'
+                                                cur.execute(f'''
+                                                                ALTER TABLE "layerexportat{Fitxer}"
+                                                                RENAME COLUMN "{column_name}" TO "{new_column_name}"
+                                                            ''')
+                                                break
                                     conn.commit()
                                 except Exception as ex:
                                     self.dlg.setEnabled(True)
@@ -1638,8 +1645,19 @@ class MapesDescriptiusPoblacio:
                     'OUTPUT': 'memory:'
                 }
                 Layer_amb_total=processing.run('qgis:fieldcalculator', alg) #, feedback=f)
+                
                 vlayer=Layer_amb_total['OUTPUT']
-            
+                '''
+                alg={
+                    #'CRS': QgsCoordinateReferenceSystem('EPSG:25831'),vlayer.crs()
+                    'CRS': vlayer.crs(),
+                    'INPUT' : Layer_amb_total['OUTPUT'],
+                    'OUTPUT': 'memory:'
+                }
+                Layer_amb_total_reproj=processing.run('native:assignprojection', alg) #, feedback=f)
+                
+                vlayer=Layer_amb_total_reproj['OUTPUT']
+                '''
             
             self.dlg.progressBar.setValue(70)
             QApplication.processEvents()
@@ -1651,6 +1669,7 @@ class MapesDescriptiusPoblacio:
                 Area=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
                 """Es crea un Shape a la carpeta temporal amb la data i hora actual"""
                 #print(qgis.utils.Qgis.QGIS_VERSION_INT)
+                
                 if (qgis.utils.Qgis.QGIS_VERSION_INT>=31004):
                     save_options = QgsVectorFileWriter.SaveVectorOptions()
                     save_options.driverName = "ESRI Shapefile"
