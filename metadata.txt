@@ -10,7 +10,7 @@
 name=MapesDescriptiusPoblacio
 qgisMinimumVersion=3.0
 description=MapesDescriptiusPoblacio
-version=Q3.240725
+version=Q3.240912
 email=jlopez@tecnocampus.cat
 
 about=MapesDescriptiusPoblacio
