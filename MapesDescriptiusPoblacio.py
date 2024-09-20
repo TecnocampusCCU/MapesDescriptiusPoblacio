@@ -73,7 +73,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240912"
+Versio_modul="V_Q3.240920"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -149,6 +149,8 @@ class MapesDescriptiusPoblacio:
         self.dlg.RB_degradat.toggled.connect(self.on_checkRB_degradat)
         self.dlg.Transparencia.valueChanged.connect(self.on_valuechange_Transparencia)
         self.dlg.bt_ReloadLeyenda.clicked.connect(self.cerca_elements_Leyenda)
+
+        self.dlg.rejected.connect(self.on_click_Sortir)
 
         # Declare instance attributes
         self.actions = []
@@ -328,6 +330,7 @@ class MapesDescriptiusPoblacio:
         global connexioFeta
         self.EstatInicial()
         if connexioFeta:
+            self.dropFinal(cur, conn)
             conn.close()
             connexioFeta = False
         self.dlg.close()
@@ -940,8 +943,6 @@ class MapesDescriptiusPoblacio:
         global Fitxer
         
         s = QSettings()
-
-        Fitxer=datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
 
         uri = QgsDataSourceUri()
         try:
@@ -2389,6 +2390,7 @@ class MapesDescriptiusPoblacio:
 
 
     def run(self):
+        global Fitxer
         '''
         Run method that performs all the real work
         '''
@@ -2396,7 +2398,7 @@ class MapesDescriptiusPoblacio:
         self.EstatInicial()
         # show the dialog
         self.dlg.show()
-        
+        Fitxer="ccu_temp"+datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
         self.populateComboBox(self.dlg.comboConnexions ,conn,'Selecciona connexió',True)
         # Run the dialog event loop
         result = self.dlg.exec_()
