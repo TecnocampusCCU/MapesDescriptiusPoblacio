@@ -42,7 +42,8 @@ from qgis.core import QgsTextFormat
 from qgis.core import QgsVectorLayerSimpleLabeling
 from qgis.core import QgsVectorLayerExporter
 from qgis.core import QgsWkbTypes
-import processing   # es pot importar utilitzant from qgis import processing, pero això només funciona en versions de QGIS posteriors a la 3.10 (com a mínim segons hem pogut comprovar)
+from qgis.core import QgsClassificationQuantile, QgsClassificationEqualInterval, QgsClassificationJenks, QgsClassificationStandardDeviation, QgsClassificationPrettyBreaks
+import processing # type: ignore
 import psycopg2
 import datetime
 from qgis.utils import iface
@@ -73,7 +74,7 @@ Path_Inicial=expanduser("~")
 cur=None
 conn=None
 progress=None
-Versio_modul="V_Q3.240920"
+Versio_modul="V_Q3.250217"
 geometria=""
 connexioFeta=False
 QEstudis=None
@@ -1655,7 +1656,13 @@ class MapesDescriptiusPoblacio:
                 """Es crea un Shape a la carpeta temporal amb la data i hora actual"""
                 #print(qgis.utils.Qgis.QGIS_VERSION_INT)
                 
-                if (qgis.utils.Qgis.QGIS_VERSION_INT>=31004):
+                if (qgis.utils.Qgis.QGIS_VERSION_INT >= 32000):
+                    save_options = QgsVectorFileWriter.SaveVectorOptions()
+                    save_options.driverName = "ESRI Shapefile"
+                    save_options.fileEncoding = "UTF-8"
+                    transform_context = QgsProject.instance().transformContext()
+                    error=QgsVectorFileWriter.writeAsVectorFormatV3(vlayer, TEMPORARY_PATH+"/Area_"+Area+".shp", transform_context,save_options)
+                elif (qgis.utils.Qgis.QGIS_VERSION_INT>=31004):
                     save_options = QgsVectorFileWriter.SaveVectorOptions()
                     save_options.driverName = "ESRI Shapefile"
                     save_options.fileEncoding = "UTF-8"
@@ -1727,24 +1734,27 @@ class MapesDescriptiusPoblacio:
                         colorRamp=QgsGradientColorRamp( QColor( 154, 255, 255 ), QColor( 0, 0, 154 ))
                     elif (self.dlg.ColorDegradat.currentText()=='Verd'):
                         colorRamp=QgsGradientColorRamp( QColor( 154, 255, 154 ), QColor( 0, 154, 0 ))
-                    
-                    format = QgsRendererRangeLabelFormat()
-                    
                     precision = 2
-                    format.setFormat(template)
-                    format.setPrecision(precision)
-                    format.setTrimTrailingZeroes(False)
-                    if (self.dlg.combo_Tipus.currentText()=='Quantil'):
-                        renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.Quantile,mysymbol,colorRamp)
-                    elif (self.dlg.combo_Tipus.currentText()=='Interval igual'):
-                        renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.EqualInterval,mysymbol,colorRamp)
-                    elif (self.dlg.combo_Tipus.currentText()=='Ruptures naturals'):
-                        renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.Jenks,mysymbol,colorRamp)
-                    elif (self.dlg.combo_Tipus.currentText()=='Desviació estandard'):
-                        renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.StdDev,mysymbol,colorRamp)
-                    elif (self.dlg.combo_Tipus.currentText()=='Pretty breaks'):
-                        renderer=QgsGraduatedSymbolRenderer.createRenderer(vlayer,fieldname,numberOfClasses,QgsGraduatedSymbolRenderer.Pretty,mysymbol,colorRamp)
-                    renderer.setLabelFormat(format,True)
+
+                    renderer = QgsGraduatedSymbolRenderer()
+                    renderer.setClassAttribute(fieldname)
+                    renderer.setSourceSymbol(mysymbol)
+                    renderer.setSourceColorRamp(colorRamp)
+                    if (self.dlg.combo_Tipus.currentText() == 'Quantil'):
+                        classification_method = QgsClassificationQuantile()
+                    elif (self.dlg.combo_Tipus.currentText() == 'Interval igual'):
+                        classification_method = QgsClassificationEqualInterval()
+                    elif (self.dlg.combo_Tipus.currentText() == 'Ruptures naturals'):
+                        classification_method = QgsClassificationJenks()
+                    elif (self.dlg.combo_Tipus.currentText() == 'Desviació estandard'):
+                        classification_method = QgsClassificationStandardDeviation()
+                    elif (self.dlg.combo_Tipus.currentText() == 'Pretty breaks'):
+                        classification_method = QgsClassificationPrettyBreaks()
+                    classification_method.setLabelFormat(template)
+                    classification_method.setLabelPrecision(precision)
+                    classification_method.setLabelTrimTrailingZeroes(False)
+                    renderer.setClassificationMethod(classification_method)
+                    renderer.updateClasses(vlayer, numberOfClasses)
                     vlayer.setOpacity(self.dlg.Transparencia.value()/100)
                     vlayer.setRenderer(renderer)
                     self.dlg.progressBar.setValue(80)
@@ -1754,7 +1764,7 @@ class MapesDescriptiusPoblacio:
                     layer_settings  = QgsPalLayerSettings()
                     text_format = QgsTextFormat()
                 
-                    text_format.setFont(QFont("Arial", self.dlg.mida.value()))
+                    text_format.setFont(QFont("Arial", int(self.dlg.mida.value())))
                     text_format.setSize(self.dlg.mida.value())
                     """
                     buffer_settings = QgsTextBufferSettings()
